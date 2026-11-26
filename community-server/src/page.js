@@ -70,6 +70,8 @@ nav .right{margin-left:auto;display:flex;gap:8px;align-items:center}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .legend .mut{color:var(--muted)}
 .dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex:none}
+.warn{width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:10px solid var(--critical);display:inline-block;flex:none}
+.doc{width:9px;height:11px;border:1.6px solid var(--muted);border-radius:2px;display:inline-block;flex:none;position:relative}
 .dia{width:9px;height:9px;background:var(--accent);transform:rotate(45deg);display:inline-block;flex:none;border-radius:1.5px}
 .src{font-size:11.5px;font-weight:600;color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent);padding:2px 7px;border-radius:999px;white-space:nowrap}
 .dot.crit{background:var(--critical)} .dot.ser{border:2.5px solid var(--serious)} .dot.past{background:var(--past);width:7px;height:7px}
@@ -84,6 +86,7 @@ nav .right{margin-left:auto;display:flex;gap:8px;align-items:center}
 .ptabs button{flex:1;border:1px solid var(--line);background:transparent;color:var(--text2);font:500 12.5px var(--font);padding:6px 4px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px}
 .ptabs button.on{background:var(--text);color:var(--bg);border-color:var(--text)}
 .ptabs .n{font-size:11px;opacity:.7;font-variant-numeric:tabular-nums}
+.pnote{padding:0 16px 10px;font-size:12.5px;color:var(--muted)}
 .pmore{padding:6px 16px 12px;border-top:1px solid var(--line)}
 button.link{border:0;background:none;color:var(--accent);font:500 13px var(--font);cursor:pointer;padding:6px 0}
 .maphint{position:absolute;left:50%;bottom:44px;transform:translateX(-50%);z-index:2;display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line2);border-radius:999px;padding:6px 6px 6px 14px;font-size:13px;box-shadow:var(--shadow);white-space:nowrap}
@@ -258,7 +261,7 @@ input[type=text]:focus{border-color:var(--accent)}
   <div class="stage" id="map-sec">
     <div class="mapbox">
       <div id="map" role="region" aria-label="Map of NBN problems"></div><div class="maphint" id="maphint" hidden></div>
-      <div class="legend" aria-label="Map layers (click to show or hide)"><button type="button" data-layers="crit,halo"><i class="dot crit"></i>Outage now</button><button type="button" data-layers="ser"><i class="dot ser"></i>Slow / reported by people</button><button type="button" data-layers="past"><i class="dot past"></i>Fixed (last 30 days)</button><button type="button" data-layers="nbnco"><i class="dia"></i>Official report (NBN Co / providers)</button><span class="mut">Bigger = more homes affected</span></div>
+      <div class="legend" aria-label="Map layers (click to show or hide)"><button type="button" data-layers="crit,halo"><i class="dot crit"></i>Outage now</button><button type="button" data-layers="ser"><i class="dot ser"></i>Slow / reported by people</button><button type="button" data-layers="past"><i class="dot past"></i>Fixed (last 30 days)</button><button type="button" data-layers="nbnco"><i class="warn"></i>Official outage, not fixed yet</button><span class="mut">Bigger = more homes affected</span></div>
     </div>
     <aside class="panel" aria-label="Areas">
       <div class="top"><div class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -408,7 +411,7 @@ function renderPanel(){
   const all=areas().filter(match);
   const active=all.filter(a=>a.alert).sort((a,b)=>b.alert.devices-a.alert.devices||a.alert.since.localeCompare(b.alert.since));
   const pastAll=all.filter(a=>!a.alert&&a.hist.length).sort((a,b)=>b.hist[0].started_at.localeCompare(a.hist[0].started_at));
-  const offAll=NBN.filter(nbnMatch);
+  const offAll=NBN.filter(nbnMatch).sort((a,b)=>(isOpen(b)-isOpen(a))||b.start_at.localeCompare(a.start_at));
   $('#ptabs-slot').replaceChildren(tabs({now:active.length,official:offAll.length,fixed:pastAll.length}));
   const show=(k)=>VIEW==='all'||VIEW===k;
   const out=[];
@@ -424,12 +427,14 @@ function renderPanel(){
   }
   if(show('official')){
     head('Official reports · NBN Co & providers · 90 days',offAll.length);
+    if(!Q&&offAll.length&&!offAll.some(isOpen)){const n=el('div','pnote','All fixed — none is shown on the map. Kept here as history.');out.push(n);}
     if(!offAll.length) out.push(emptyBox('',Q?'No official reports for this search in the last 90 days.':'No official reports in the last 90 days.'));
     const lim=VIEW==='official'?offAll.length:5;
     offAll.slice(0,lim).forEach(o=>{const r=el('div','row');const b=el('div');
       b.append(el('div','t',nbnName(o)),el('div','m',srcShort(o)+(isMobile(o)?' mobile':'')+' · '+(o.premises?o.premises.toLocaleString()+' premises · ':'')+cause(o)+' · '+day(o.start_at)));
-      const d=el('div','d num',hrs(o.duration_h));d.append(el('small',null,'to fix'));
-      const ic=el('i','dia');ic.style.marginTop='6px';r.append(ic,b,d);r.onclick=()=>selectNbn(o.ref,true);out.push(r);});
+      const open=isOpen(o);
+      const d=el('div','d num',open?dur(minsSince(o.start_at)):hrs(o.duration_h));d.append(el('small',null,open?'not fixed yet':'to fix'));
+      const ic=el('i',open?'warn':'doc');ic.style.marginTop='5px';r.append(ic,b,d);r.onclick=()=>selectNbn(o.ref,open);out.push(r);});
     if(offAll.length>lim)moreBtn(offAll.length,()=>{VIEW='official';renderPanel();$('#pbody').scrollTop=0;});
   }
   if(show('fixed')){
@@ -488,17 +493,19 @@ function nbnDetail(ref){
   const o=NBN.find(x=>x.ref===ref);const box=el('div','detail');
   const back=el('button','back','← All areas');back.onclick=()=>{SEL=null;renderPanel();$('#pbody').scrollTop=0;};box.append(back);
   if(!o){box.append(emptyBox('','This report is no longer listed.'));return box;}
-  const tag=el('div');tag.style.marginTop='12px';tag.append(el('span','src',srcShort(o)+' official report'));box.append(tag);
+  const open=isOpen(o);
+  const tag=el('div');tag.style.cssText='margin-top:12px;display:flex;gap:6px;flex-wrap:wrap';tag.append(el('span','src',srcShort(o)+' official report'),el('span','pill '+(open?'crit':'good'),open?'Not fixed yet':'Fixed'));box.append(tag);
   box.append(el('h2',null,nbnName(o)),el('div','loc',o.states.join(', ')+(o.postcodes.length?' · '+o.postcodes.length+(o.postcodes.length>1?' postcodes':' postcode'):'')));
-  const big=el('div','bigdur num',hrs(o.duration_h));box.append(big,el('div','sub','until fixed'));
+  const big=el('div','bigdur num',open?dur(minsSince(o.start_at)):hrs(o.duration_h));if(open)big.dataset.since=o.start_at;box.append(big,el('div','sub',open?'so far — since '+when(o.start_at):'until fixed'));
   const f=el('div','facts');
   const pp=perPoint(o);
-  [['Started',when(o.start_at)],['Fixed',o.end_at?when(o.end_at):'not stated'],['Premises',o.premises!=null?o.premises.toLocaleString()+(pp&&o.points.length>1?' (~'+pp.toLocaleString()+' per postcode)':''):'—'],['Cause',cause(o)+(o.natural==='Yes'?' (weather / natural event)':'')],
+  [['Started',when(o.start_at)],['Fixed',o.end_at?when(o.end_at):open?'not yet':'not stated'],['Premises',o.premises!=null?o.premises.toLocaleString()+(pp&&o.points.length>1?' (~'+pp.toLocaleString()+' per postcode)':''):'—'],['Cause',cause(o)+(o.natural==='Yes'?' (weather / natural event)':'')],
    ['Services',o.techs||'—'],['Reported by',srcOf(o).name],['Published',o.published||'—']].forEach(([k,v])=>f.append(el('div',null,k),el('div',null,v)));
   box.append(f);
   if(o.suburbs.length){const t=el('div','ptitle');t.style.padding='14px 0 4px';t.append(el('span',null,'Suburbs and towns'),el('span','num',String(o.suburbs.length)));
     const sb=el('div','sub',o.suburbs.slice(0,60).join(', ')+(o.suburbs.length>60?' and '+(o.suburbs.length-60)+' more':''));box.append(t,sb);}
-  if(!o.points.length&&o.postcodes.length)box.append(el('div','sub','Too widespread to show as dots on the map.'));
+  if(!open)box.append(el('div','sub','Fixed, so it isn’t shown on the map.'));
+  else if(!o.points.length&&o.postcodes.length)box.append(el('div','sub','Too widespread to show on the map.'));
   const act=el('div','actions');const a=el('a','btn ghost sm','View the '+srcShort(o)+' register ↗');a.href=srcOf(o).url;a.target='_blank';a.rel='noopener';act.append(a);box.append(act);
   box.append(el('div','fine','Source: '+srcOf(o).name+' outage register. Providers must list major and significant local outages (ACMA rules), usually after they are fixed.'+(isMobile(o)?' This one affected the mobile network — which is what 4G modem backup relies on.':'')));
   return box;
@@ -512,6 +519,10 @@ let SOURCES={nbnco:{name:'NBN Co',url:'https://www.nbnco.com.au/outages-register
 const srcOf=(o)=>SOURCES[o.source]||{name:o.source||'Official',url:'#'};
 const srcShort=(o)=>({nbnco:'NBN Co',tpg:'TPG Telecom',abb:'Aussie Broadband'}[o.source]||srcOf(o).name);
 // Estimated premises around each dot of an official outage (its total spread over its postcodes).
+// An official outage is shown on the map only while it is not fixed: no end time and
+// no duration in the register, and started within the last 30 days (older open
+// entries are treated as never closed off, not as live).
+const isOpen=(o)=>o.end_at==null&&o.duration_h==null&&Date.now()-Date.parse(o.start_at)<30*864e5;
 const perPoint=(o)=>o.premises&&o.points.length?Math.round(o.premises/o.points.length):null;
 const isMobile=(o)=>/mobile/i.test(o.techs)&&!/broadband|nbn|fixed|fttp|fttn|fttc|hfc|wireless internet/i.test(o.techs);
 function select(key,fly){
@@ -548,11 +559,12 @@ function setupMap(){
   map.on('load',()=>{
     const ring=dark?'#181817':'#ffffff';
     map.addSource('areas',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
-    // NBN Co register: blue diamonds (source identity, not severity)
-    const sz=22,cv=document.createElement('canvas');cv.width=cv.height=sz;const cx=cv.getContext('2d');
-    cx.translate(sz/2,sz/2);cx.rotate(Math.PI/4);cx.fillStyle=dark?'#7aa2f7':'#3b6fd8';cx.strokeStyle=ring;cx.lineWidth=2.5;
-    cx.beginPath();cx.roundRect(-6.5,-6.5,13,13,2);cx.fill();cx.stroke();
-    map.addImage('nbnco-dia',cx.getImageData(0,0,sz,sz),{pixelRatio:1.5});
+    // Official outages that are not fixed yet: a warning triangle (white ring, red fill, white "!").
+    const sz=28,cv=document.createElement('canvas');cv.width=cv.height=sz;const cx=cv.getContext('2d');
+    const tri=()=>{cx.beginPath();cx.moveTo(14,2.5);cx.lineTo(26,24.5);cx.lineTo(2,24.5);cx.closePath();};
+    cx.lineJoin='round';tri();cx.lineWidth=4;cx.strokeStyle=ring;cx.stroke();tri();cx.fillStyle='#d03b3b';cx.fill();
+    cx.fillStyle='#ffffff';cx.fillRect(12.6,9.5,2.8,8.5);cx.beginPath();cx.arc(14,21,1.6,0,7);cx.fill();
+    map.addImage('nbnco-dia',cx.getImageData(0,0,sz,sz),{pixelRatio:2});
     map.addSource('nbnco',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
     map.addLayer({id:'nbnco',type:'symbol',source:'nbnco',layout:{'icon-image':'nbnco-dia','icon-allow-overlap':true,'symbol-sort-key':['-',0,['get','est']],
       'icon-size':['interpolate',['linear'],['zoom'],4,['*',.9,SIZE.official],11,['*',1.1,SIZE.official]]}});
@@ -580,11 +592,11 @@ function setupMap(){
 }
 function updateHint(){
   const h=$('#maphint');if(!map||!map.getLayer('nbnco')||!NBN.length){h.hidden=true;return;}
-  const pts=NBN.flatMap(o=>o.points);if(!pts.length){h.hidden=true;return;}
+  const open=NBN.filter(isOpen);const pts=open.flatMap(o=>o.points);if(!pts.length){h.hidden=true;return;}
   const b=map.getBounds();const inView=pts.filter(p=>b.contains(p)).length;
   if(inView||map.getLayoutProperty('nbnco','visibility')==='none'){h.hidden=true;return;}
   const btn=el('button',null,'Show all');btn.onclick=()=>{const bb=new maplibregl.LngLatBounds();pts.forEach(p=>bb.extend(p));map.fitBounds(bb,{padding:50,maxZoom:6});};
-  h.replaceChildren(document.createTextNode('No official reports in this view · '+NBN.length+' across Australia'),btn);h.hidden=false;
+  h.replaceChildren(document.createTextNode(open.length+(open.length>1?' official outages':' official outage')+' not fixed yet, outside this view'),btn);h.hidden=false;
 }
 document.querySelectorAll('.legend button').forEach(b=>b.onclick=()=>{if(!map)return;const off=!b.classList.toggle('off');
   b.dataset.layers.split(',').forEach(id=>{if(map.getLayer(id))map.setLayoutProperty(id,'visibility',b.classList.contains('off')?'none':'visible');});updateHint();});
@@ -596,8 +608,8 @@ function drawMap(){
     const label=al?(kindText(al.kinds)+' · '+dur(minsSince(al.since))+' so far'):(a.hist.length+(a.hist.length>1?' problems':' problem')+' in 30 days, now fixed');
     return {type:'Feature',geometry:{type:'Point',coordinates:[a.lng,a.lat]},properties:{key:a.key,name:name(a),kind,label,devices:al?al.devices:1,count:a.hist.length||1,reporting:al?al.reporting:true}};});
   map.getSource('areas').setData({type:'FeatureCollection',features:feats});
-  if(map.getSource('nbnco'))map.getSource('nbnco').setData({type:'FeatureCollection',features:NBN.flatMap(o=>o.points.map(pt=>({type:'Feature',geometry:{type:'Point',coordinates:pt},
-    properties:{ref:o.ref,name:nbnName(o),est:perPoint(o)||300,label:srcShort(o)+' · '+day(o.start_at)+' · '+hrs(o.duration_h)+' · '+(perPoint(o)?'~'+perPoint(o).toLocaleString()+' premises here':cause(o))}})))});
+  if(map.getSource('nbnco'))map.getSource('nbnco').setData({type:'FeatureCollection',features:NBN.filter(isOpen).flatMap(o=>o.points.map(pt=>({type:'Feature',geometry:{type:'Point',coordinates:pt},
+    properties:{ref:o.ref,name:nbnName(o),est:perPoint(o)||300,label:srcShort(o)+' · not fixed yet · since '+when(o.start_at)+' · '+(perPoint(o)?'~'+perPoint(o).toLocaleString()+' premises here':cause(o))}})))});
   updateHint();
   const live=feats.filter(f=>f.properties.kind!=='past');
   if(live.length&&!fitted&&!CFG.near){fitted=true;const b=new maplibregl.LngLatBounds();live.forEach(f=>b.extend(f.geometry.coordinates));map.fitBounds(b,{padding:80,maxZoom:10});}
@@ -618,7 +630,7 @@ function renderBanner(){
   if(near) h=nearOnes.length?('NBN problems near '+near+' right now'):('No known NBN problems near '+near);
   else h=n?('NBN problems in '+n+(n>1?' areas':' area')+' right now'):'No known NBN problems right now';
   $('#headline').textContent=h;
-  $('#headsub').textContent='· '+(n?(n+(n>1?' areas':' area')+', '+homes+(homes>1?' homes':' home')+' affected across Australia'):'nothing open across Australia')+(NBN.length?' · '+NBN.length+' official reports in 90 days':'')+' · updated '+new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+  $('#headsub').textContent='· '+(n?(n+(n>1?' areas':' area')+', '+homes+(homes>1?' homes':' home')+' affected across Australia'):'nothing open across Australia')+(NBN.filter(isOpen).length?' · '+NBN.filter(isOpen).length+' official outages not fixed yet':'')+' · updated '+new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
 }
 
 // ---------------- numbers ----------------
@@ -689,7 +701,7 @@ function renderLog(){
 function nbnRow(o){
   const tr=el('tr');const a=el('td');a.append(el('b',null,nbnName(o)),document.createTextNode(o.states.length?'  '+o.states.join('/'):''));
   const src=el('td','hide-sm');src.append(el('span','src',srcShort(o)));
-  const st=el('td');st.append(el('span','pill good','Fixed'));
+  const st=el('td');st.append(isOpen(o)?el('span','pill crit','Ongoing'):el('span','pill good','Fixed'));
   tr.append(a,el('td',null,(isMobile(o)?'Mobile outage · ':'Major outage · ')+cause(o)),src,el('td','hide-sm',when(o.start_at)),el('td','r',hrs(o.duration_h)),st);
   tr.onclick=()=>{selectNbn(o.ref,true);$('#map-sec').scrollIntoView({behavior:'smooth'});};return tr;
 }
