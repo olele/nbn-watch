@@ -418,3 +418,84 @@ export const PROBLEMS = {
   phone: "Phone / VoIP not working",
 };
 export const REPORT_TTL_SEC = 6 * 3600; // a manual report fades after 6 hours unless confirmed again
+
+// ---------------------------------------------------------------------------
+// NBN Co outage register (public CSV published under ACMA rules)
+// ---------------------------------------------------------------------------
+export const REGISTER_URL = "https://www.nbnco.com.au/content/dam/nbnco/acma-content/nbn_outage_register.csv";
+export const REGISTER_PAGE = "https://www.nbnco.com.au/outages-register";
+export const REGISTER_MAX_POINTS = 30; // wider outages are listed but not drawn as dots
+
+export function parseCsv(text) {
+  const rows = [];
+  let row = [], field = "", quoted = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (quoted) {
+      if (c === '"' && text[i + 1] === '"') { field += '"'; i++; }
+      else if (c === '"') quoted = false;
+      else field += c;
+    } else if (c === '"') quoted = true;
+    else if (c === ",") { row.push(field); field = ""; }
+    else if (c === "\n" || c === "\r") {
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      row.push(field); field = "";
+      if (row.some((x) => x.trim())) rows.push(row);
+      row = [];
+    } else field += c;
+  }
+  row.push(field);
+  if (row.some((x) => x.trim())) rows.push(row);
+  return rows;
+}
+
+const TZ = { AEST: 600, AEDT: 660, ACST: 570, ACDT: 630, AWST: 480 };
+
+// "20/11/2026" + "03:04 AEDT" -> unix seconds (null when unparseable)
+export function registerTime(date, time) {
+  const d = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(date || "").trim());
+  if (!d) return null;
+  const t = /^(\d{1,2}):(\d{2})\s*([A-Z]{4})?$/.exec(String(time || "").trim()) || [null, "0", "00", "AEST"];
+  const offset = TZ[t[3]] ?? 600;
+  const ms = Date.UTC(+d[3], +d[2] - 1, +d[1], +t[1], +t[2]) - offset * 60000;
+  return Number.isFinite(ms) ? Math.floor(ms / 1000) : null;
+}
+
+const split = (s) => String(s || "").split(/;\s*/).map((x) => x.trim()).filter(Boolean);
+
+export function parseRegister(text) {
+  const rows = parseCsv(text);
+  if (!rows.length) return [];
+  const head = rows[0].map((h) => h.trim().toLowerCase());
+  const col = (row, prefix) => {
+    const i = head.findIndex((h) => h.startsWith(prefix));
+    return i >= 0 ? String(row[i] ?? "").trim() : "";
+  };
+  const out = [];
+  for (const r of rows.slice(1)) {
+    const ref = col(r, "reference");
+    const start = registerTime(col(r, "start date"), col(r, "start time"));
+    if (!/^[A-Z0-9]{6,32}$/.test(ref) || start == null) continue;
+    const end = registerTime(col(r, "end date"), col(r, "end time"));
+    const dur = parseFloat(col(r, "duration"));
+    const premises = parseInt(col(r, "number of premises"), 10);
+    out.push({
+      ref,
+      title: col(r, "outage title").slice(0, 300),
+      kind: col(r, "outage type").slice(0, 80),
+      start_at: start,
+      end_at: end,
+      duration_h: Number.isFinite(dur) ? dur : end != null ? Math.round(((end - start) / 3600) * 100) / 100 : null,
+      suburbs: split(col(r, "affected suburb")).slice(0, 600),
+      states: split(col(r, "affected state")),
+      postcodes: split(col(r, "affected postcode")).filter((p) => /^\d{4}$/.test(p)),
+      techs: col(r, "types of services").replace(/^NBN broadband services connected by means of\s*/i, "").slice(0, 300),
+      premises: Number.isFinite(premises) ? premises : null,
+      cause: col(r, "cause (high").slice(0, 120),
+      natural: col(r, "cause (related").slice(0, 40),
+      info: col(r, "additional").slice(0, 1000),
+      published: col(r, "date entry first").slice(0, 20),
+    });
+  }
+  return out;
+}

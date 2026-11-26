@@ -69,6 +69,8 @@ nav .right{margin-left:auto;display:flex;gap:8px;align-items:center}
 .legend{position:absolute;left:10px;top:10px;max-width:calc(100% - 70px);display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--text2);background:color-mix(in srgb,var(--surface) 92%,transparent);padding:7px 10px;border-radius:9px;border:1px solid var(--line);z-index:2}
 .legend span{display:inline-flex;align-items:center;gap:6px}
 .dot{width:10px;height:10px;border-radius:50%;display:inline-block;flex:none}
+.dia{width:9px;height:9px;background:var(--accent);transform:rotate(45deg);display:inline-block;flex:none;border-radius:1.5px}
+.src{font-size:11.5px;font-weight:600;color:var(--accent);background:color-mix(in srgb,var(--accent) 10%,transparent);padding:2px 7px;border-radius:999px;white-space:nowrap}
 .dot.crit{background:var(--critical)} .dot.ser{border:2.5px solid var(--serious)} .dot.past{background:var(--past);width:7px;height:7px}
 .panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r);box-shadow:var(--shadow);display:flex;flex-direction:column;min-height:560px;max-height:560px;overflow:hidden}
 .panel .top{padding:14px 14px 10px;border-bottom:1px solid var(--line)}
@@ -142,6 +144,13 @@ tr:last-child td{border-bottom:0}
 .scroll{overflow-x:auto}
 
 .more{text-align:center;margin-top:12px}
+.official{padding:18px;margin-top:12px}
+.oh{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ostats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:14px}
+.ostats div{border-left:2px solid var(--line);padding-left:12px}
+.ostats b{display:block;font-size:22px;letter-spacing:-.02em}
+.ostats span{font-size:12.5px;color:var(--muted)}
+@media (max-width:700px){.ostats{grid-template-columns:1fr 1fr}}
 /* trust */
 .trust{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-top:14px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
 .trust>div{padding:16px 18px;border-left:1px solid var(--line)}
@@ -237,7 +246,7 @@ input[type=text]:focus{border-color:var(--accent)}
   <div class="stage" id="map-sec">
     <div class="mapbox">
       <div id="map" role="region" aria-label="Map of NBN problems"></div>
-      <div class="legend"><span><i class="dot crit"></i>Outage now</span><span><i class="dot ser"></i>Slow / reported by people</span><span><i class="dot past"></i>Fixed (last 30 days)</span></div>
+      <div class="legend"><span><i class="dot crit"></i>Outage now</span><span><i class="dot ser"></i>Slow / reported by people</span><span><i class="dot past"></i>Fixed (last 30 days)</span><span><i class="dia"></i>NBN Co official report</span></div>
     </div>
     <aside class="panel" aria-label="Areas">
       <div class="top"><div class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
@@ -249,7 +258,7 @@ input[type=text]:focus{border-color:var(--accent)}
 
   <div class="trust">
     <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 16.5h.01M11 16.5h.01M8 13V9m8 4V6"/></svg>
-      <b>Measured, not guessed</b><span>Most dots come straight from home modems the moment they lose NBN — often before NBN Co’s own status page.</span></div>
+      <b>Measured, not guessed</b><span>Live dots come straight from home modems the moment they lose NBN. NBN Co’s official outage register is shown alongside.</span></div>
     <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4.5 3 8.3 7 9.5 4-1.2 7-5 7-9.5V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg>
       <b>Private by design</b><span>Areas are shown to about 1 km. No addresses, names or IP addresses are ever published.</span></div>
     <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 8-5 4 5 4m8-8 5 4-5 4M14 5l-4 14"/></svg>
@@ -267,11 +276,16 @@ input[type=text]:focus{border-color:var(--accent)}
       <div style="position:relative"><div class="bars" id="bars"></div><div class="tip" id="tip"></div></div>
       <div class="xaxis" id="xaxis"></div>
     </div>
+    <div class="card official" id="official" hidden>
+      <div class="oh"><span class="src">NBN Co official</span><b>Major outages reported by NBN Co · last 90 days</b></div>
+      <div class="ostats" id="ostats"></div>
+      <div class="fine" style="margin-top:10px">From NBN Co’s public <a id="reg-link" href="#" target="_blank" rel="noopener">outage register</a> (required by ACMA). It lists larger outages only, a day or two after they’re fixed — the live map above comes from home modems and people.</div>
+    </div>
   </section>
 
   <section id="log">
     <div class="sh"><div><h3 class="st">Outage log</h3><p class="sub" id="log-sub">Last 7 days: when each problem started and how long it took to come back.</p></div></div>
-    <div class="card scroll" id="logcard"><table><thead><tr><th>Area</th><th>What happened</th><th class="hide-sm">Started</th><th class="r">Lasted</th><th>Status</th></tr></thead><tbody id="logrows"></tbody></table></div>
+    <div class="card scroll" id="logcard"><table><thead><tr><th>Area</th><th>What happened</th><th class="hide-sm">Source</th><th class="hide-sm">Started</th><th class="r">Lasted</th><th>Status</th></tr></thead><tbody id="logrows"></tbody></table></div>
   </section>
 
   <section id="join">
@@ -307,7 +321,7 @@ input[type=text]:focus{border-color:var(--accent)}
   </section>
 
   <footer>
-    <div>© NBN Watch · free and open source (MIT). Not affiliated with NBN Co, Optus or Telstra.<br>Map data © OpenStreetMap contributors.</div>
+    <div>© NBN Watch · free and open source (MIT). Not affiliated with NBN Co, Optus or Telstra.<br>Official outages: NBN Co outage register. Map © OpenStreetMap contributors. Postcode locations: GeoNames (CC BY 4.0).</div>
     <div><a id="nbnco" href="#" target="_blank" rel="noopener">NBN Co status</a> · <a id="gh" href="#" target="_blank" rel="noopener">GitHub</a></div>
   </footer>
 </main>
@@ -340,7 +354,7 @@ const KIND={nbn_outage:'NBN outage',mobile_backup:'Modem on 4G backup',degraded:
 const STATUS={ongoing:'Ongoing',recovered:'Back online',nbn_restored:'Fixed (NBN Co)',expired:'Report faded',no_reports:'Went quiet'};
 const ICON={good:'<path d="m5 12.5 4.5 4.5L19 7.5" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
   bad:'<path d="M12 7v6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="17" r="1.4" fill="currentColor"/>'};
-let CFG={problems:{},links:{}},ALERTS=[],HIST=[],SEL=null,Q='',LOGN=12;
+let CFG={problems:{},links:{}},ALERTS=[],HIST=[],NBN=[],SEL=null,Q='',LOGN=12;
 
 // ---------------- data model: areas ----------------
 function areas(){
@@ -352,6 +366,11 @@ function areas(){
   return [...m.values()];
 }
 // Red when a modem itself saw NBN drop; orange for slow service or people-only reports.
+const nbnMatch=(o)=>!Q||o.suburbs.some(x=>x.toLowerCase().includes(Q))||o.postcodes.some(x=>x.startsWith(Q))||o.states.some(x=>x.toLowerCase()===Q)||o.title.toLowerCase().includes(Q);
+const nbnName=(o)=>o.suburbs.length?(o.suburbs.slice(0,2).join(', ')+(o.suburbs.length>2?' +'+(o.suburbs.length-2)+' more':'')):o.title;
+const hrs=(h)=>h==null?'—':dur(h*60);
+const CAUSE={'Damage by a third party':'Cable damage by a third party','Power interruption':'Power outage','Equipment or system fault or failure':'Equipment fault'};
+const cause=(o)=>CAUSE[o.cause]||o.cause||'Not stated';
 const isSevere=(a)=>!!(a.kinds.nbn_outage||a.kinds.mobile_backup);
 const match=(a)=>!Q||(a.suburb||'').toLowerCase().includes(Q)||(a.postcode||'').startsWith(Q)||(a.state||'').toLowerCase()===Q;
 function summary(list){
@@ -363,7 +382,7 @@ function summary(list){
 // ---------------- side panel ----------------
 function renderPanel(){
   const body=$('#pbody');
-  if(SEL){body.replaceChildren(detail(SEL));return;}
+  if(SEL){body.replaceChildren(SEL.startsWith('nbnco:')?nbnDetail(SEL.slice(6)):detail(SEL));body.scrollTop=0;return;}
   const all=areas().filter(match);
   const active=all.filter(a=>a.alert).sort((a,b)=>b.alert.devices-a.alert.devices||a.alert.since.localeCompare(b.alert.since));
   const past=all.filter(a=>!a.alert&&a.hist.length).sort((a,b)=>b.hist[0].started_at.localeCompare(a.hist[0].started_at)).slice(0,30);
@@ -380,6 +399,12 @@ function renderPanel(){
       const d=el('div','d num',dur(last.duration_min));d.append(el('small',null,'last one'));
       r.append(el('i','dot past'),b,d);r.onclick=()=>select(a.key,true);out.push(r);});}
   else if(Q&&!active.length) out.push(emptyBox('','No problems recorded in the last 30 days for this search. Good news for '+Q+'.'));
+  const off=NBN.filter(nbnMatch).slice(0,Q?50:8);
+  if(off.length){const t3=el('div','ptitle');t3.style.marginTop='8px';t3.append(el('span',null,'NBN Co official reports · 90 days'),el('span','num',String(NBN.filter(nbnMatch).length)));out.push(t3);
+    off.forEach(o=>{const r=el('div','row');const b=el('div');
+      b.append(el('div','t',nbnName(o)),el('div','m',(o.premises?o.premises.toLocaleString()+' premises · ':'')+cause(o)+' · '+day(o.start_at)));
+      const d=el('div','d num',hrs(o.duration_h));d.append(el('small',null,'to fix'));
+      const ic=el('i','dia');ic.style.marginTop='6px';r.append(ic,b,d);r.onclick=()=>selectNbn(o.ref,true);out.push(r);});}
   body.replaceChildren(...out);
 }
 function emptyBox(t,s){const e=el('div','empty');if(t)e.append(el('b',null,t));e.append(document.createTextNode(s));return e;}
@@ -387,7 +412,7 @@ function kindText(k){return Object.entries(k).map(([x,n])=>(KIND[x]||x)+(n>1?' �
 
 function detail(key){
   const a=areas().find(x=>x.key===key);const box=el('div','detail');
-  const back=el('button','back','← All areas');back.onclick=()=>{SEL=null;renderPanel();};box.append(back);
+  const back=el('button','back','← All areas');back.onclick=()=>{SEL=null;renderPanel();$('#pbody').scrollTop=0;};box.append(back);
   if(!a){box.append(emptyBox('','This area has no problems on record any more.'));return box;}
   const al=a.alert;
   box.append(el('h2',null,name(a)),el('div','loc',[place(a),'area shown to ~1 km'].filter(Boolean).join(' · ')));
@@ -411,12 +436,40 @@ function detail(key){
     a.hist.slice(0,12).forEach(i=>{const r=el('div','h');const l=el('div');l.append(el('div',null,when(i.started_at)),el('div','sub',KIND[i.kind]||i.kind));
       const rr=el('div');rr.style.textAlign='right';rr.append(el('div','num',i.status==='ongoing'?'ongoing':dur(i.duration_min)),el('div','sub',STATUS[i.status]||i.status));r.append(l,rr);h.append(r);});
     box.append(h);}
+  const official=a.postcode?NBN.filter(o=>o.postcodes.includes(a.postcode)):[];
+  if(official.length){const t=el('div','ptitle');t.style.padding='16px 0 4px';t.append(el('span',null,'NBN Co official reports here'),el('span','num',String(official.length)));box.append(t);
+    const h=el('div','hist');official.forEach(o=>{const r=el('div','h');r.style.cursor='pointer';const l=el('div');l.append(el('div',null,day(o.start_at)),el('div','sub',cause(o)+(o.premises?' · '+o.premises.toLocaleString()+' premises':'')));
+      const rr=el('div','num',hrs(o.duration_h));r.append(l,rr);r.onclick=()=>selectNbn(o.ref,false);h.append(r);});box.append(h);}
   const act=el('div','actions');
   const rep=el('button','btn sm','Report a problem here');rep.onclick=openReport;act.append(rep);
   if(CFG.links.discord){const d=el('a','btn discord sm','Discuss on Discord');d.href=CFG.links.discord;d.target='_blank';d.rel='noopener';act.append(d);}
   box.append(act);
   return box;
 }
+function nbnDetail(ref){
+  const o=NBN.find(x=>x.ref===ref);const box=el('div','detail');
+  const back=el('button','back','← All areas');back.onclick=()=>{SEL=null;renderPanel();$('#pbody').scrollTop=0;};box.append(back);
+  if(!o){box.append(emptyBox('','This report is no longer listed.'));return box;}
+  const tag=el('div');tag.style.marginTop='12px';tag.append(el('span','src','NBN Co official report'));box.append(tag);
+  box.append(el('h2',null,nbnName(o)),el('div','loc',o.states.join(', ')+(o.postcodes.length?' · '+o.postcodes.length+(o.postcodes.length>1?' postcodes':' postcode'):'')));
+  const big=el('div','bigdur num',hrs(o.duration_h));box.append(big,el('div','sub','until fixed'));
+  const f=el('div','facts');
+  [['Started',when(o.start_at)],['Fixed',o.end_at?when(o.end_at):'not stated'],['Premises',o.premises!=null?o.premises.toLocaleString():'—'],['Cause',cause(o)+(o.natural==='Yes'?' (weather / natural event)':'')],
+   ['Technology',o.techs||'—'],['Published',o.published||'—']].forEach(([k,v])=>f.append(el('div',null,k),el('div',null,v)));
+  box.append(f);
+  if(o.suburbs.length){const t=el('div','ptitle');t.style.padding='14px 0 4px';t.append(el('span',null,'Suburbs and towns'),el('span','num',String(o.suburbs.length)));
+    const sb=el('div','sub',o.suburbs.slice(0,60).join(', ')+(o.suburbs.length>60?' and '+(o.suburbs.length-60)+' more':''));box.append(t,sb);}
+  if(!o.points.length&&o.postcodes.length)box.append(el('div','sub','Too widespread to show as dots on the map.'));
+  const act=el('div','actions');const a=el('a','btn ghost sm','View on nbnco.com.au ↗');a.href=SOURCE.url;a.target='_blank';a.rel='noopener';act.append(a);box.append(act);
+  box.append(el('div','fine','Source: '+SOURCE.name+'. NBN Co lists major and significant local outages here, usually a day or two after they are fixed.'));
+  return box;
+}
+function selectNbn(ref,fly){
+  SEL='nbnco:'+ref;renderPanel();const o=NBN.find(x=>x.ref===ref);
+  if(fly&&map&&o&&o.points.length){if(o.points.length===1)map.flyTo({center:o.points[0],zoom:Math.max(map.getZoom(),10)});else{const b=new maplibregl.LngLatBounds();o.points.forEach(p=>b.extend(p));map.fitBounds(b,{padding:60,maxZoom:11});}}
+  if(innerWidth<980)$('.panel').scrollIntoView({behavior:'smooth',block:'start'});
+}
+let SOURCE={name:'NBN Co outage register',url:'https://www.nbnco.com.au/outages-register'};
 function select(key,fly){
   SEL=key;renderPanel();
   const a=areas().find(x=>x.key===key);
@@ -438,8 +491,18 @@ function setupMap(){
   map.addControl(new maplibregl.GeolocateControl({positionOptions:{enableHighAccuracy:false},fitBoundsOptions:{maxZoom:12}}),'top-right');
   const hover=new maplibregl.Popup({closeButton:false,closeOnClick:false,offset:12});
   map.on('load',()=>{
-    map.addSource('areas',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
     const ring=dark?'#181817':'#ffffff';
+    map.addSource('areas',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+    // NBN Co register: blue diamonds (source identity, not severity)
+    const sz=22,cv=document.createElement('canvas');cv.width=cv.height=sz;const cx=cv.getContext('2d');
+    cx.translate(sz/2,sz/2);cx.rotate(Math.PI/4);cx.fillStyle=dark?'#7aa2f7':'#3b6fd8';cx.strokeStyle=ring;cx.lineWidth=2.5;
+    cx.beginPath();cx.roundRect(-6.5,-6.5,13,13,2);cx.fill();cx.stroke();
+    map.addImage('nbnco-dia',cx.getImageData(0,0,sz,sz),{pixelRatio:2});
+    map.addSource('nbnco',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+    map.addLayer({id:'nbnco',type:'symbol',source:'nbnco',layout:{'icon-image':'nbnco-dia','icon-allow-overlap':true,'icon-size':['interpolate',['linear'],['zoom'],4,1.1,11,1.8]}});
+    map.on('click','nbnco',(e)=>selectNbn(e.features[0].properties.ref,false));
+    map.on('mouseenter','nbnco',(e)=>{map.getCanvas().style.cursor='pointer';const p=e.features[0].properties;const b=el('div');b.append(el('b',null,'NBN Co: '+p.name),el('div',null,p.label));hover.setLngLat(e.features[0].geometry.coordinates).setDOMContent(b).addTo(map);});
+    map.on('mouseleave','nbnco',()=>{map.getCanvas().style.cursor='';hover.remove();});
     map.addLayer({id:'past',type:'circle',source:'areas',filter:['==',['get','kind'],'past'],
       paint:{'circle-color':dark?'#6b6b65':'#a3a29a','circle-radius':['interpolate',['linear'],['zoom'],4,3,11,6],'circle-stroke-color':ring,'circle-stroke-width':1.5}});
     map.addLayer({id:'halo',type:'circle',source:'areas',filter:['==',['get','kind'],'crit'],
@@ -465,6 +528,8 @@ function drawMap(){
     const label=al?(kindText(al.kinds)+' · '+dur(minsSince(al.since))+' so far'):(a.hist.length+(a.hist.length>1?' problems':' problem')+' in 30 days, now fixed');
     return {type:'Feature',geometry:{type:'Point',coordinates:[a.lng,a.lat]},properties:{key:a.key,name:name(a),kind,label,devices:al?al.devices:1,reporting:al?al.reporting:true}};});
   map.getSource('areas').setData({type:'FeatureCollection',features:feats});
+  if(map.getSource('nbnco'))map.getSource('nbnco').setData({type:'FeatureCollection',features:NBN.flatMap(o=>o.points.map(pt=>({type:'Feature',geometry:{type:'Point',coordinates:pt},
+    properties:{ref:o.ref,name:nbnName(o),label:day(o.start_at)+' · '+hrs(o.duration_h)+' · '+(o.premises?o.premises.toLocaleString()+' premises':cause(o))}})))});
   const live=feats.filter(f=>f.properties.kind!=='past');
   if(live.length&&!fitted&&!CFG.near){fitted=true;const b=new maplibregl.LngLatBounds();live.forEach(f=>b.extend(f.geometry.coordinates));map.fitBounds(b,{padding:80,maxZoom:10});}
 }
@@ -502,6 +567,17 @@ async function loadNumbers(){
     tile('Last 7 days',String(week),cmp(week,prevWeek,'week')),
     tile('Average recovery',dur(s.overall.mean_recovery_min),s.overall.median_recovery_min!=null?'typical '+dur(s.overall.median_recovery_min)+' · last 30 days':'last 30 days'));
 }
+function renderOfficial(){
+  if(!NBN.length)return;
+  const sumP=NBN.reduce((n,o)=>n+(o.premises||0),0);
+  const ds=NBN.map(o=>o.duration_h).filter(x=>x!=null).sort((a,b)=>a-b);
+  const med=ds.length?ds[Math.floor(ds.length/2)]:null;
+  const top=Object.entries(NBN.reduce((m,o)=>{const c=cause(o);m[c]=(m[c]||0)+1;return m;},{})).sort((a,b)=>b[1]-a[1])[0];
+  $('#ostats').replaceChildren(...[[String(NBN.length),'major outages'],[sumP.toLocaleString(),'premises affected'],[hrs(med),'typical time to fix'],[top?top[0]:'—',top?top[1]+' of '+NBN.length+' outages':'most common cause']]
+    .map(([v,k])=>{const d=el('div');d.append(el('b','num',v),el('span',null,k));return d;}));
+  $('#reg-link').href=SOURCE.url;$('#official').hidden=false;
+}
+
 async function loadChart(days){
   const s=await get('/api/stats?days='+days).catch(()=>null);if(!s)return;
   const max=Math.max(1,...s.daily.map(d=>d.incidents));const bars=$('#bars');bars.replaceChildren();
@@ -521,25 +597,36 @@ document.querySelectorAll('#range button').forEach(b=>b.onclick=()=>{document.qu
 // ---------------- outage log ----------------
 function renderLog(){
   const week=Date.now()-7*864e5;
-  const all=HIST.filter(i=>new Date(i.started_at).getTime()>=week||i.status==='ongoing').filter(match);
+  const ours=HIST.filter(i=>new Date(i.started_at).getTime()>=week||i.status==='ongoing').filter(match).map(i=>({t:i.started_at,i}));
+  const off=NBN.filter(o=>new Date(o.start_at).getTime()>=week).filter(nbnMatch).map(o=>({t:o.start_at,o}));
+  const all=ours.concat(off).sort((x,y)=>y.t.localeCompare(x.t));
   const rows=all.slice(0,LOGN);
   const more=$('#logmore');if(more)more.remove();
   if(all.length>LOGN){const m=el('div','more');m.id='logmore';const b=el('button','btn ghost sm','Show more ('+(all.length-LOGN)+')');b.onclick=()=>{LOGN+=20;renderLog();};m.append(b);$('#logcard').after(m);}
   $('#log-sub').textContent=Q?('Last 7 days matching “'+Q+'”.'):'Last 7 days: when each problem started and how long it took to come back.';
-  if(!rows.length){const tr=el('tr');const td=el('td','empty',Q?'Nothing in the last 7 days for this search.':'No problems in the last 7 days.');td.colSpan=5;tr.append(td);$('#logrows').replaceChildren(tr);return;}
-  $('#logrows').replaceChildren(...rows.map(i=>{const tr=el('tr');
+  if(!rows.length){const tr=el('tr');const td=el('td','empty',Q?'Nothing in the last 7 days for this search.':'No problems in the last 7 days.');td.colSpan=6;tr.append(td);$('#logrows').replaceChildren(tr);return;}
+  $('#logrows').replaceChildren(...rows.map(x=>{if(x.o)return nbnRow(x.o);const i=x.i;const tr=el('tr');
     const st=i.status==='ongoing'?el('span','pill crit','Ongoing'):el('span','pill '+(i.status==='recovered'||i.status==='nbn_restored'?'good':'plain'),STATUS[i.status]||i.status);
     const a=el('td');a.append(el('b',null,name(i)),document.createTextNode(place(i)?'  '+place(i):''));
     const s=el('td');s.append(st);
-    tr.append(a,el('td',null,KIND[i.kind]||i.kind),el('td','hide-sm',when(i.started_at)),el('td','r',i.status==='ongoing'?dur(minsSince(i.started_at))+' so far':dur(i.duration_min)),s);
+    const srcTd=el('td','hide-sm',i.kind==='user_report'?'People':'Home modems');srcTd.style.color='var(--muted)';
+    tr.append(a,el('td',null,KIND[i.kind]||i.kind),srcTd,el('td','hide-sm',when(i.started_at)),el('td','r',i.status==='ongoing'?dur(minsSince(i.started_at))+' so far':dur(i.duration_min)),s);
     tr.onclick=()=>{select(keyOf(i),true);$('#map-sec').scrollIntoView({behavior:'smooth'});};return tr;}));
+}
+
+function nbnRow(o){
+  const tr=el('tr');const a=el('td');a.append(el('b',null,nbnName(o)),document.createTextNode(o.states.length?'  '+o.states.join('/'):''));
+  const src=el('td','hide-sm');src.append(el('span','src','NBN Co'));
+  const st=el('td');st.append(el('span','pill good','Fixed'));
+  tr.append(a,el('td',null,'Major outage · '+cause(o)),src,el('td','hide-sm',when(o.start_at)),el('td','r',hrs(o.duration_h)),st);
+  tr.onclick=()=>{selectNbn(o.ref,true);$('#map-sec').scrollIntoView({behavior:'smooth'});};return tr;
 }
 
 // ---------------- loading ----------------
 async function loadLive(){
-  const [a,h]=await Promise.all([get('/api/alerts').catch(()=>({alerts:[]})),get('/api/incidents?days=30').catch(()=>({incidents:[]}))]);
-  ALERTS=a.alerts||[];HIST=h.incidents||[];
-  renderBanner();renderPanel();drawMap();renderLog();
+  const [a,h,n]=await Promise.all([get('/api/alerts').catch(()=>({alerts:[]})),get('/api/incidents?days=30').catch(()=>({incidents:[]})),get('/api/nbnco?days=90').catch(()=>({outages:[]}))]);
+  ALERTS=a.alerts||[];HIST=h.incidents||[];NBN=n.outages||[];if(n.source)SOURCE=n.source;
+  renderBanner();renderPanel();drawMap();renderLog();renderOfficial();
 }
 let qt=null;
 $('#q').oninput=()=>{clearTimeout(qt);qt=setTimeout(()=>{Q=$('#q').value.trim().toLowerCase();SEL=null;LOGN=12;renderPanel();renderLog();},150);};
