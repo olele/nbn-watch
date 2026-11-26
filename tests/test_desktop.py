@@ -388,8 +388,9 @@ class TestWeb:
             patch.object(router_probe, "probe", return_value=mesh),
             patch.object(router_probe, "report_unsupported", return_value=True) as rep,
         ):
-            assert c.post("/api/capture/send")[1]["ok"]
+            assert c.post("/api/capture/send", {"credit": "  Kai from Geelong  "})[1]["ok"]
         sent = rep.call_args.args[1]
+        assert sent["credit"] == "Kai from Geelong"
         assert sent["capture"]["entries"][0][
             "path"
         ] == "/api/v1/status" and "Home" not in json.dumps(sent)
@@ -437,6 +438,29 @@ class TestWeb:
             lambda *a, **k: MagicMock(status_code=404, content=b"x", json=lambda: {"error": "no"}),
         )
         assert c.post("/api/telegram/code") == (502, {"error": "no"})
+
+    def test_community(
+        self, ui: tuple[monitor.Monitor, Client, web.Api], monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _, c, _ = ui
+
+        class Resp:
+            status_code = 200
+
+            def json(self) -> dict[str, object]:
+                return {"active_users": 12, "recordings": 3, "note": "<b>"}
+
+        monkeypatch.setattr(web.niquests, "get", lambda *a, **k: Resp())
+        data = c.get("/api/community")[1]
+        assert data["active_users"] == 12 and data["recordings"] == 3 and "note" not in data
+        assert "Optus" in " ".join(data["supported_models"])
+
+        def down(*a: object, **k: object) -> None:
+            raise web.niquests.ConnectionError("offline")
+
+        monkeypatch.setattr(web.niquests, "get", down)
+        data = c.get("/api/community")[1]
+        assert "active_users" not in data and data["supported_models"]
 
     def test_update(self, ui: tuple[monitor.Monitor, Client, web.Api]) -> None:
         _, c, api = ui

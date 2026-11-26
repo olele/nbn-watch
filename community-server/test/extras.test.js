@@ -42,6 +42,17 @@ test("router issue fingerprints", () => {
   assert.deepEqual(r.value.paths, ["/a"]);
   assert.equal(r.value.login_page.length, 20000);
   assert.equal(fingerprintKey(r.value), fingerprintKey({ ...r.value, error: "different" }));
+  assert.equal(r.value.credit, "", "credit only comes with a recording");
+});
+
+test("contributor credit is short plain text", () => {
+  const capture = { format: "nbnw-capture-1", entries: [] };
+  const r = validateRouterIssue({ title: "X", capture, credit: "  Jo <script>alert(1)</script> https://spam.example  " });
+  assert.ok(r.ok);
+  assert.ok(!/[<>/:]/.test(r.value.credit));
+  assert.ok(r.value.credit.length <= 40);
+  assert.equal(validateRouterIssue({ title: "X", capture, credit: "Kai @kai_au" }).value.credit, "Kai @kai_au");
+  assert.equal(validateRouterIssue({ title: "X", credit: "Kai" }).value.credit, "");
 });
 
 test("releases and admin auth", () => {

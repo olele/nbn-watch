@@ -83,6 +83,10 @@ export function validateRouterIssue(body) {
     const text = JSON.stringify(body.capture);
     if (text.length <= 600_000) value.capture = text;
   }
+  // Optional public credit for the Hall of Fame: a short name or handle, plain characters only.
+  value.credit = typeof body.credit === "string" && value.capture
+    ? body.credit.replace(/[^\p{L}\p{N} @._'-]/gu, "").replace(/\s+/g, " ").trim().slice(0, 40)
+    : "";
   if (!value.title && !value.server_header && !value.upnp_model && !value.login_page && !value.capture) {
     return { ok: false, error: "empty fingerprint" };
   }

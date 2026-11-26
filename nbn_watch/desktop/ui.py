@@ -73,6 +73,22 @@ button:disabled{opacity:.45;cursor:default}
 .ac-opt .t{color:var(--bright-foreground)}
 .ac-msg{padding:10px 12px;color:var(--dark-foreground)}
 .ac-picked{margin-top:8px;min-height:20px;font-size:13px}
+.help{border-color:var(--accent)}
+.card h3{margin:18px 0 6px;font-size:13px;color:var(--bright-foreground);text-transform:uppercase;letter-spacing:.06em}
+.pillars{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+@media (max-width:640px){.pillars{grid-template-columns:1fr}}
+.pillar{border:1px solid var(--muted);background:var(--background);padding:10px 12px}
+.pillar .pt{color:var(--accent);font-weight:700;margin-bottom:4px}
+.pillar .pd{color:var(--foreground);font-size:12.5px;margin:0}
+.pillar ul.pd{padding-left:16px}
+.pillar ul.pd li{margin-bottom:3px}
+.alt{background:transparent}
+.crowd{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 14px}
+.crowd:empty{display:none}
+.fact{flex:1;min-width:140px;border:1px solid var(--muted);padding:8px 12px;background:var(--background)}
+.fact b{display:block;font-size:20px;color:var(--bright-foreground)}
+.fact span{color:var(--dark-foreground);font-size:12px}
+.crowd-note{flex-basis:100%;font-size:12px}
 """
 
 UI_JS = r"""
@@ -212,16 +228,31 @@ function viewRouter(mode, next){
     else{form.classList.add('hidden');unsupported.classList.remove('hidden');unsupportedBox(r);}
   }
   function unsupportedBox(r){
-    unsupported.replaceChildren(note(r.name+' isn\'t supported yet. If this is the modem your NBN connects to, you can help add it — your password never leaves this computer.','warn'));
-    // Option 1: just the model details (one click).
-    const send=btn('Send model details',null,async()=>{send.disabled=true;
-      const res=await api('/api/router/report',{host:r.host}).catch(e=>({ok:false,error:e.message}));
-      unsupported.append(note(res.ok?'Thanks — sent. NBN Watch updates itself when support is ready.':'Could not send: '+(res.error||''),res.ok?'ok':'bad'));});
-    const row=el('div','row');row.append(send);unsupported.append(row);
-    // Option 2: a diagnostic capture (much more useful for adding support).
-    const cap=el('div','card');cap.style.marginTop='14px';
-    cap.append(el('h2',null,'Help add support (5 minutes)'),el('p','lead','Record your modem\'s admin page in your browser. NBN Watch removes passwords, Wi-Fi names, MAC/IP addresses and serial numbers on this computer before anything is sent, and shows you a summary first.'));
-    cap.append(harGuide(r.host));
+    const name=r.name||'modem';
+    unsupported.replaceChildren(note('NBN Watch can\'t read your '+name+' yet.','warn'));
+    // --- the ask: why, join in, it's safe ---
+    const cap=el('div','card help');cap.style.marginTop='14px';
+    cap.append(el('h2',null,'Help us support the '+name),
+      el('p','lead','NBN Watch is built and kept going by the people who use it. A 5-minute recording from you teaches it to read this modem — for you and for everyone else who has one.'));
+    const crowd=el('div','crowd');cap.append(crowd);
+    api('/api/community').then(d=>{
+      const n=(x)=>Number(x||0).toLocaleString();
+      const facts=[];
+      if(d.active_users) facts.push([n(d.active_users),d.active_users===1?'person watching their NBN':'people watching their NBN']);
+      if(d.recordings) facts.push([n(d.recordings),d.recordings===1?'modem recording shared':'modem recordings shared']);
+      facts.push([String((d.supported_models||[]).length),'modem families supported']);
+      crowd.replaceChildren(...facts.map(([v,l])=>{const f=el('div','fact');f.append(el('b',null,v),el('span',null,l));return f;}));
+      if(d.supported_models&&d.supported_models.length) crowd.append(el('div','mut crowd-note','Supported so far: '+d.supported_models.join(', ')+'. Each one started with a recording like yours.'));
+    }).catch(()=>crowd.remove());
+    const pillars=el('div','pillars');
+    [['Why a recording?','Every modem shows its NBN and 4G-backup status in its own way. Recording its admin pages once shows us where that status lives and how to read it.'],
+     ['Be the one who adds it','Send one recording and we build support from it. It reaches everyone in an automatic update, and contributors are thanked by name in our Hall of Fame.'],
+     ['Safe by design',null]].forEach(([t,d],i)=>{
+      const p=el('div','pillar');p.append(el('div','pt',(i+1)+' · '+t));
+      if(d) p.append(el('div','pd',d));
+      else{const ul=el('ul','pd');['Your password never leaves this computer.','Passwords, Wi-Fi names and keys, MAC and public IP addresses and serial numbers are removed here, before upload.','Only the modem\'s own pages are kept.','You see a summary and nothing is sent until you press Send.'].forEach(x=>ul.append(el('li',null,x)));p.append(ul);}
+      pillars.append(p);});
+    cap.append(pillars,el('h3',null,'How to record'),harGuide(r.host));
     const file=el('input');file.type='file';file.accept='.har,application/json';
     const out=el('div');
     file.onchange=async()=>{
@@ -233,12 +264,26 @@ function viewRouter(mode, next){
       box.append(el('b',null,'Ready to send: '+sm.requests_kept+' modem requests ('+Math.round(d.bytes/1024)+' KB). '),
         document.createTextNode(sm.other_sites_dropped+' requests to other sites dropped. Removed: '+(Object.entries(sm.removed).map(([k,v])=>v+' '+k).join(', ')||'nothing sensitive found')+'.'));
       const pages=el('div','mut','Pages: '+(sm.pages.join(', ')||'—'));
-      const go=btn('Send capture',null,async()=>{go.disabled=true;const res=await api('/api/capture/send',{}).catch(e=>({ok:false,error:e.message}));
-        out.append(note(res.ok?'Thank you! Your capture is with the NBN Watch team. You\'ll get support in an automatic update.':'Could not send: '+(res.error||''),res.ok?'ok':'bad'));});
+      const credit=el('input');credit.type='text';credit.maxLength=40;credit.placeholder='e.g. Kai from Geelong — leave empty to stay anonymous';
+      const go=btn('Send recording',null,async()=>{go.disabled=true;go.textContent='Sending…';
+        const res=await api('/api/capture/send',{credit:credit.value.trim()}).catch(e=>({ok:false,error:e.message}));
+        if(res.ok){go.textContent='Sent ✓';credit.disabled=true;
+          out.append(note((credit.value.trim()?'Thank you, '+credit.value.trim()+'! ':'Thank you! ')+'You just helped everyone with a '+name+'. We\'ll build support from your recording and it will arrive in an automatic update'+(credit.value.trim()?', with your name in the Hall of Fame':'')+'. If anything is missing, we\'ll ask here.','ok'));}
+        else{go.disabled=false;go.textContent='Try again';out.append(note('Could not send: '+(res.error||'no connection')+'. Check your internet connection and try again.','bad'));}});
       const actions=el('div','row');actions.append(go);
-      out.replaceChildren(box,pages,actions);
+      out.replaceChildren(box,pages,el('label','f','Credit me in the Hall of Fame as (optional)'),credit,actions);
     };
-    cap.append(el('label','f','Your HAR file'),file,out);unsupported.append(cap);
+    cap.append(el('label','f','Your recording (.har file)'),file,out);unsupported.append(cap);
+    // --- the low-effort alternative ---
+    const alt=el('div','card alt');
+    alt.append(el('h2',null,'Not now?'),
+      el('p','lead','Just tell us this modem isn\'t supported. We only send its model name and maker — no recording, no passwords. Every report moves it up our list.'));
+    const fb=el('div');
+    const send=btn('Report this modem as unsupported','ghost',async()=>{send.disabled=true;send.textContent='Reporting…';
+      const res=await api('/api/router/report',{host:r.host}).catch(e=>({ok:false,error:e.message}));
+      if(res.ok){send.textContent='Reported ✓';fb.replaceChildren(note('Thanks — we\'ve logged your '+name+' as unsupported. You\'ll get support in an automatic update when it\'s ready. You can still send a recording above any time to speed it up.','ok'));}
+      else{send.disabled=false;send.textContent='Try again';fb.replaceChildren(note('Could not send the report'+(res.error?': '+res.error:'')+'. Check your internet connection and try again.','bad'));}});
+    const row=el('div','row');row.append(send);alt.append(row,fb);unsupported.append(alt);
   }
   return c;
 }

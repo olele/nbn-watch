@@ -68,6 +68,8 @@ def body(issue: dict[str, Any]) -> str:
         ("App / OS", f"{issue.get('app_version')} / {issue.get('os')}"),
         ("Error", issue.get("error")),
         ("Diagnostic capture", capture_note(issue)),
+        ("Recordings received", issue.get("recordings")),
+        ("Credit (Hall of Fame)", issue.get("credit")),
     ]
     table = "\n".join(f"| {k} | {str(v).replace('|', '/')} |" for k, v in rows if v)
     try:

@@ -79,6 +79,7 @@ export default {
       const capMatch = url.pathname.match(/^\/api\/admin\/router-issues\/(\d+)\/capture$/);
       if (capMatch && request.method === "GET") return await adminCapture(request, env, Number(capMatch[1]));
       if (url.pathname === "/api/app/latest" && request.method === "GET") return await appLatest(env, url);
+      if (url.pathname === "/api/community" && request.method === "GET") return await communitySummary(env);
       if (url.pathname === "/api/stats" && request.method === "GET") return await stats(env, url);
       if (url.pathname === "/api/config" && request.method === "GET") {
         // Approximate visitor location from Cloudflare's IP geolocation (city level),
@@ -496,9 +497,13 @@ async function routerIssue(request, env) {
   await env.DB.prepare(
     `INSERT INTO router_issues (fp_key, gateway_vendor, title, server_header, realm, upnp_manufacturer, upnp_model,
         upnp_model_number, upnp_friendly, login_page, paths, error, isp, country, os, app_version,
-        first_seen, last_seen, reports, devices)
-     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?17, 1, ?18)
-     ON CONFLICT(fp_key) DO UPDATE SET last_seen = ?17, reports = reports + 1, isp = ?13, error = ?12, synced = CASE WHEN length(?19) > 0 THEN 0 ELSE synced END,
+        first_seen, last_seen, reports, devices, capture, capture_at, recordings, credit)
+     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?17, 1, ?18, ?19,
+        CASE WHEN length(?19) > 0 THEN ?17 END, CASE WHEN length(?19) > 0 THEN 1 ELSE 0 END, ?20)
+     ON CONFLICT(fp_key) DO UPDATE SET last_seen = ?17,
+        recordings = recordings + CASE WHEN length(?19) > 0 THEN 1 ELSE 0 END,
+        credit = CASE WHEN length(?20) = 0 OR instr(credit, ?20) > 0 THEN credit
+                      WHEN credit = '' THEN ?20 ELSE substr(credit || ' · ' || ?20, 1, 300) END, reports = reports + 1, isp = ?13, error = ?12, synced = CASE WHEN length(?19) > 0 THEN 0 ELSE synced END,
         capture = CASE WHEN length(?19) > 0 THEN ?19 ELSE capture END,
         capture_at = CASE WHEN length(?19) > 0 THEN ?17 ELSE capture_at END,
         login_page = CASE WHEN length(?10) > 0 THEN ?10 ELSE login_page END,
@@ -506,7 +511,7 @@ async function routerIssue(request, env) {
   )
     .bind(key, v.gateway_vendor, v.title, v.server_header, v.realm, v.upnp_manufacturer, v.upnp_model, v.upnp_model_number,
       v.upnp_friendly, v.login_page, JSON.stringify(v.paths), v.error, isp, country, v.os, v.app_version, t, dev.slice(0, 12),
-      v.capture)
+      v.capture, v.credit)
     .run();
   return json({ ok: true, issue: key });
 }
@@ -517,7 +522,7 @@ async function adminIssues(request, env) {
     `SELECT id, fp_key, gateway_vendor, title, server_header, realm, upnp_manufacturer, upnp_model, upnp_model_number,
             upnp_friendly, login_page, paths, error, isp, country, os, app_version, first_seen, last_seen, reports,
             (length(devices) - length(replace(devices, ',', '')) + 1) AS device_count, synced,
-            length(capture) AS capture_bytes
+            length(capture) AS capture_bytes, credit, recordings
      FROM router_issues WHERE synced = 0 ORDER BY last_seen DESC LIMIT 50`,
   ).all();
   return json({ issues: results });
@@ -573,6 +578,25 @@ const LINKS = {
   whirlpool: "https://forums.whirlpool.net.au/",
   nbn_status: "https://www.nbnco.com.au/support/network-status",
 };
+
+// Public, aggregate-only numbers the desktop app shows to encourage contributions.
+async function communitySummary(env) {
+  const t = now();
+  const [users, modems] = await Promise.all([
+    env.DB.prepare("SELECT COUNT(*) AS n FROM reports WHERE updated_at >= ?").bind(t - 30 * 86400).first(),
+    env.DB.prepare(
+      `SELECT COUNT(*) AS models, COALESCE(SUM(recordings), 0) AS recordings,
+              COALESCE(SUM(CASE WHEN credit != '' THEN 1 ELSE 0 END), 0) AS credited
+       FROM router_issues`,
+    ).first(),
+  ]);
+  return json(
+    { active_users: users?.n ?? 0, models_reported: modems?.models ?? 0, recordings: modems?.recordings ?? 0,
+      credited_models: modems?.credited ?? 0 },
+    200,
+    { "cache-control": "public, max-age=600" },
+  );
+}
 
 async function stats(env, url) {
   const t = now();

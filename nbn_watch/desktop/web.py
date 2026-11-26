@@ -227,7 +227,7 @@ class Api:
         self._capture = {"host": host, "capture": cap}
         return {"summary": capture.summary(report), "bytes": len(json.dumps(cap))}
 
-    def capture_send(self) -> dict[str, Any]:
+    def capture_send(self, body: dict[str, Any] | None = None) -> dict[str, Any]:
         from ..probe import probe, report_unsupported
 
         if self._capture is None:
@@ -235,10 +235,29 @@ class Api:
         fp = probe(self._capture["host"])
         payload = fp.issue_payload(device=self.monitor.device_id, app_version=VERSION)
         payload["capture"] = self._capture["capture"]
+        credit = str((body or {}).get("credit", "")).strip()[:40]
+        if credit:
+            payload["credit"] = credit  # opt-in name for the Hall of Fame
         ok = report_unsupported(self.monitor.settings.community_url, payload)
         if ok:
             self._capture = None
         return {"ok": ok}
+
+    def community(self) -> dict[str, Any]:
+        """Aggregate community numbers (no personal data) plus what this build supports."""
+        from ..routers import DRIVERS
+
+        data: dict[str, Any] = {}
+        url = self.monitor.settings.community_url.rstrip("/")
+        if url:
+            try:
+                resp = niquests.get(f"{url}/api/community", timeout=8)
+                if resp.status_code == 200 and isinstance(resp.json(), dict):
+                    data = {k: v for k, v in resp.json().items() if isinstance(v, int)}
+            except (niquests.RequestException, ValueError):
+                pass
+        data["supported_models"] = [d.name for d in DRIVERS]
+        return data
 
     def telegram_unlink(self) -> dict[str, Any]:
         _community(self.monitor, "/api/telegram/unlink")
@@ -359,6 +378,7 @@ def make_handler(api: Api, token: str, port_ref: list[int]) -> type[BaseHTTPRequ
                 "/api/search": lambda: api.search(qs.get("q", "")),
                 "/api/routers": api.routers,
                 "/api/telegram/status": api.telegram_status,
+                "/api/community": api.community,
             }
             fn = routes.get(url.path)
             if fn is None:
@@ -395,7 +415,7 @@ def make_handler(api: Api, token: str, port_ref: list[int]) -> type[BaseHTTPRequ
                 "/api/finish": api.finish,
                 "/api/check": api.check,
                 "/api/update/install": api.update_install,
-                "/api/capture/send": api.capture_send,
+                "/api/capture/send": lambda: api.capture_send(body),
             }
             fn = routes.get(path)
             if fn is None:
