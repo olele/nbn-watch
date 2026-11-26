@@ -20,4 +20,4 @@ Description: Know the moment your NBN drops
  Router-level NBN outage detection, 4G backup tracking, Telegram alerts
  and a community outage map for Australia.
 CTL
-dpkg-deb --build --root-owner-group "$ROOT" "nbn-watch_${VERSION}_amd64.deb"
+dpkg-deb -Zxz --build --root-owner-group "$ROOT" "nbn-watch_${VERSION}_amd64.deb"
