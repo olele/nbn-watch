@@ -7,8 +7,7 @@
 import {
   PROBLEMS,
   REGISTER_MAX_POINTS,
-  REGISTER_PAGE,
-  REGISTER_URL,
+  REGISTER_SOURCES,
   REPORT_TTL_SEC,
   aggregate,
   buildAlerts,
@@ -85,7 +84,7 @@ export default {
       if (capMatch && request.method === "GET") return await adminCapture(request, env, Number(capMatch[1]));
       if (url.pathname.startsWith("/download/") && request.method === "GET") return await download(env, url);
       if (url.pathname === "/api/app/latest" && request.method === "GET") return await appLatest(env, url);
-      if (url.pathname === "/api/nbnco" && request.method === "GET") return await nbncoOutages(env, url);
+      if ((url.pathname === "/api/official" || url.pathname === "/api/nbnco") && request.method === "GET") return await officialOutages(env, url);
       if (url.pathname === "/api/admin/sync-register" && request.method === "POST") {
         if (!bearerOk(request.headers.get("authorization"), env.ADMIN_TOKEN)) return json({ error: "forbidden" }, 403);
         return json(await syncRegister(env));
@@ -561,16 +560,28 @@ async function adminAck(request, env) {
 // NBN Co outage register: fetched hourly, stored, served with map points.
 // ---------------------------------------------------------------------------
 async function syncRegister(env) {
-  const resp = await fetch(REGISTER_URL, {
-    headers: { "user-agent": "NBN-Watch/1.0 (+https://github.com/olele/nbn-watch)", accept: "text/csv" },
+  const result = {};
+  for (const src of REGISTER_SOURCES) {
+    try {
+      result[src.id] = await syncSource(env, src);
+    } catch (e) {
+      result[src.id] = { ok: false, error: String(e).slice(0, 200) };
+    }
+  }
+  return result;
+}
+
+async function syncSource(env, src) {
+  const resp = await fetch(src.url, {
+    headers: { "user-agent": "NBN-Watch/1.0 (+https://github.com/olele/nbn-watch)", accept: "text/csv,*/*" },
     cf: { cacheTtl: 900 },
   });
-  if (!resp.ok) throw new Error("register HTTP " + resp.status);
+  if (!resp.ok) throw new Error("HTTP " + resp.status);
   const buf = await resp.arrayBuffer();
-  if (buf.byteLength > 5_000_000) throw new Error("register too large");
-  const text = new TextDecoder("windows-1252").decode(buf); // served as ISO-8859-1
-  const rows = parseRegister(text);
-  if (!rows.length) throw new Error("register empty or changed format");
+  if (buf.byteLength > 5_000_000) throw new Error("too large");
+  const text = new TextDecoder("windows-1252").decode(buf); // registers are served as ISO-8859-1
+  const rows = parseRegister(text, src.dates);
+  if (!rows.length) throw new Error("empty or changed format");
   const pcs = [...new Set(rows.flatMap((r) => (r.postcodes.length <= REGISTER_MAX_POINTS ? r.postcodes : [])))];
   const centres = new Map();
   for (let i = 0; i < pcs.length; i += 90) {
@@ -586,24 +597,24 @@ async function syncRegister(env) {
   const stmts = rows.map((r) => {
     const points = r.postcodes.length <= REGISTER_MAX_POINTS ? r.postcodes.map((p) => centres.get(p)).filter(Boolean) : [];
     return env.DB.prepare(
-      `INSERT INTO nbnco_outages (ref, title, kind, start_at, end_at, duration_h, suburbs, states, postcodes, techs,
+      `INSERT INTO nbnco_outages (ref, source, title, kind, start_at, end_at, duration_h, suburbs, states, postcodes, techs,
           premises, cause, natural, info, published, points, updated_at)
-       VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
+       VALUES (?1, ?18, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
        ON CONFLICT(ref) DO UPDATE SET title = ?2, kind = ?3, start_at = ?4, end_at = ?5, duration_h = ?6, suburbs = ?7,
           states = ?8, postcodes = ?9, techs = ?10, premises = ?11, cause = ?12, natural = ?13, info = ?14,
-          published = ?15, points = ?16, updated_at = ?17`,
-    ).bind(r.ref, r.title, r.kind, r.start_at, r.end_at, r.duration_h, r.suburbs.join("; "), r.states.join("; "),
-      r.postcodes.join("; "), r.techs, r.premises, r.cause, r.natural, r.info, r.published, JSON.stringify(points), t);
+          published = ?15, points = ?16, updated_at = ?17, source = ?18`,
+    ).bind(`${src.id}:${r.ref}`, r.title, r.kind, r.start_at, r.end_at, r.duration_h, r.suburbs.join("; "), r.states.join("; "),
+      r.postcodes.join("; "), r.techs, r.premises, r.cause, r.natural, r.info, r.published, JSON.stringify(points), t, src.id);
   });
   for (let i = 0; i < stmts.length; i += 50) await env.DB.batch(stmts.slice(i, i + 50));
   return { ok: true, outages: rows.length, placed: rows.filter((r) => r.postcodes.length <= REGISTER_MAX_POINTS).length };
 }
 
-async function nbncoOutages(env, url) {
+async function officialOutages(env, url) {
   const days = Math.min(365, Math.max(1, Number(url.searchParams.get("days")) || 90));
   const { results } = await env.DB.prepare(
-    `SELECT ref, title, kind, start_at, end_at, duration_h, suburbs, states, postcodes, techs, premises, cause, natural,
-            info, published, points FROM nbnco_outages WHERE start_at >= ? ORDER BY start_at DESC LIMIT 300`,
+    `SELECT ref, source, title, kind, start_at, end_at, duration_h, suburbs, states, postcodes, techs, premises, cause,
+            natural, info, published, points FROM nbnco_outages WHERE start_at >= ? ORDER BY start_at DESC LIMIT 400`,
   )
     .bind(now() - days * 86400)
     .all();
@@ -611,7 +622,8 @@ async function nbncoOutages(env, url) {
   const list = (s) => (s ? String(s).split("; ") : []);
   return json(
     {
-      source: { name: "NBN Co outage register", url: REGISTER_PAGE, note: "Major and significant local outages, published after they are fixed." },
+      sources: REGISTER_SOURCES.map(({ id, name, page }) => ({ id, name, url: page })),
+      note: "Major and significant local outages from official registers (ACMA rules), usually published after they are fixed.",
       days,
       outages: results.map((r) => ({
         ...r,

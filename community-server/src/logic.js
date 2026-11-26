@@ -420,10 +420,36 @@ export const PROBLEMS = {
 export const REPORT_TTL_SEC = 6 * 3600; // a manual report fades after 6 hours unless confirmed again
 
 // ---------------------------------------------------------------------------
-// NBN Co outage register (public CSV published under ACMA rules)
+// Official outage registers. ACMA's rule (from 31 March 2026) makes carriers and
+// providers publish major / significant local outages in one common column
+// layout. We read the ones published as plain files.
 // ---------------------------------------------------------------------------
-export const REGISTER_URL = "https://www.nbnco.com.au/content/dam/nbnco/acma-content/nbn_outage_register.csv";
-export const REGISTER_PAGE = "https://www.nbnco.com.au/outages-register";
+export const REGISTER_SOURCES = [
+  {
+    id: "nbnco",
+    name: "NBN Co",
+    url: "https://www.nbnco.com.au/content/dam/nbnco/acma-content/nbn_outage_register.csv",
+    page: "https://www.nbnco.com.au/outages-register",
+    dates: "dmy",
+  },
+  {
+    id: "tpg",
+    name: "TPG Telecom (Vodafone, TPG, iiNet, Internode…)",
+    url: "https://www.vodafone.com.au/content/dam/vha/documents/others/network-outage-register.csv",
+    page: "https://www.vodafone.com.au/network/status/outage-register",
+    dates: "mdy",
+  },
+  {
+    id: "abb",
+    name: "Aussie Broadband",
+    url: "https://assets.aussiebroadband.com.au/web/assets/misc/aussie-broadband-public-outage-register.csv",
+    page: "https://www.aussiebroadband.com.au/network/outages/",
+    dates: "dmy",
+  },
+];
+// Kept for older callers.
+export const REGISTER_URL = REGISTER_SOURCES[0].url;
+export const REGISTER_PAGE = REGISTER_SOURCES[0].page;
 export const REGISTER_MAX_POINTS = 30; // wider outages are listed but not drawn as dots
 
 export function parseCsv(text) {
@@ -451,19 +477,41 @@ export function parseCsv(text) {
 
 const TZ = { AEST: 600, AEDT: 660, ACST: 570, ACDT: 630, AWST: 480 };
 
-// "20/11/2026" + "03:04 AEDT" -> unix seconds (null when unparseable)
-export function registerTime(date, time) {
+// Register date + time -> unix seconds. Dates are d/m/y or m/d/y (per source);
+// times may be "03:04 AEDT", "8:19:00 AM", "23:45 PM" or bare. No zone: AEST.
+export function registerTime(date, time, order = "dmy") {
   const d = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(String(date || "").trim());
   if (!d) return null;
-  const t = /^(\d{1,2}):(\d{2})\s*([A-Z]{4})?$/.exec(String(time || "").trim()) || [null, "0", "00", "AEST"];
-  const offset = TZ[t[3]] ?? 600;
-  const ms = Date.UTC(+d[3], +d[2] - 1, +d[1], +t[1], +t[2]) - offset * 60000;
+  const [day, month] = order === "mdy" ? [+d[2], +d[1]] : [+d[1], +d[2]];
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  const t = /^(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?\s*([A-Z]{4})?$/i.exec(String(time || "").trim());
+  let h = t ? +t[1] : 0;
+  const m = t ? +t[2] : 0;
+  const ampm = t?.[3]?.toUpperCase();
+  if (ampm === "PM" && h < 12) h += 12;
+  if (ampm === "AM" && h === 12) h = 0;
+  const offset = TZ[t?.[4]?.toUpperCase()] ?? 600;
+  const ms = Date.UTC(+d[3], month - 1, day, h, m) - offset * 60000;
   return Number.isFinite(ms) ? Math.floor(ms / 1000) : null;
 }
 
-const split = (s) => String(s || "").split(/;\s*/).map((x) => x.trim()).filter(Boolean);
+// "13.38" (hours.minutes, NBN Co), "3 hr 7 min", "1.22" -> hours (number) or null
+export function registerDuration(text) {
+  const s = String(text || "").trim().toLowerCase();
+  const hm = /^(?:(\d+)\s*(?:h|hr|hrs|hours?))?\s*(?:(\d+)\s*(?:m|min|mins|minutes?))?$/.exec(s);
+  if (hm && (hm[1] || hm[2])) return +(hm[1] || 0) + +(hm[2] || 0) / 60;
+  const dot = /^(\d+)(?:\.(\d{1,2}))?$/.exec(s);
+  if (dot) return +dot[1] + (dot[2] ? Math.min(+dot[2].padEnd(2, "0"), 59) / 60 : 0);
+  return null;
+}
 
-export function parseRegister(text) {
+const split = (s) => String(s || "").split(/;\s*/).map((x) => x.trim()).filter(Boolean);
+const count = (s) => {
+  const n = parseInt(String(s || "").replace(/[,\s]/g, ""), 10);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+};
+
+export function parseRegister(text, order = "dmy") {
   const rows = parseCsv(text);
   if (!rows.length) return [];
   const head = rows[0].map((h) => h.trim().toLowerCase());
@@ -474,23 +522,23 @@ export function parseRegister(text) {
   const out = [];
   for (const r of rows.slice(1)) {
     const ref = col(r, "reference");
-    const start = registerTime(col(r, "start date"), col(r, "start time"));
-    if (!/^[A-Z0-9]{6,32}$/.test(ref) || start == null) continue;
-    const end = registerTime(col(r, "end date"), col(r, "end time"));
-    const dur = parseFloat(col(r, "duration"));
-    const premises = parseInt(col(r, "number of premises"), 10);
+    const start = registerTime(col(r, "start date"), col(r, "start time"), order);
+    if (!/^[A-Za-z0-9-]{3,32}$/.test(ref) || start == null) continue;
+    const end = registerTime(col(r, "end date"), col(r, "end time"), order);
+    const fromTimes = end != null && end >= start ? (end - start) / 3600 : null;
+    const stated = registerDuration(col(r, "duration"));
     out.push({
       ref,
       title: col(r, "outage title").slice(0, 300),
       kind: col(r, "outage type").slice(0, 80),
       start_at: start,
-      end_at: end,
-      duration_h: Number.isFinite(dur) ? dur : end != null ? Math.round(((end - start) / 3600) * 100) / 100 : null,
+      end_at: end != null && end >= start ? end : null,
+      duration_h: fromTimes != null ? Math.round(fromTimes * 100) / 100 : stated != null ? Math.round(stated * 100) / 100 : null,
       suburbs: split(col(r, "affected suburb")).slice(0, 600),
       states: split(col(r, "affected state")),
-      postcodes: split(col(r, "affected postcode")).filter((p) => /^\d{4}$/.test(p)),
+      postcodes: split(col(r, "affected postcode").replace(/,/g, ";")).filter((p) => /^\d{4}$/.test(p)),
       techs: col(r, "types of services").replace(/^NBN broadband services connected by means of\s*/i, "").slice(0, 300),
-      premises: Number.isFinite(premises) ? premises : null,
+      premises: count(col(r, "number of premises")),
       cause: col(r, "cause (high").slice(0, 120),
       natural: col(r, "cause (related").slice(0, 40),
       info: col(r, "additional").slice(0, 1000),
