@@ -4,7 +4,24 @@ A daily job (`scripts/sync_router_issues.py`, installed with
 `scripts/install-issue-sync.sh`) turns new reports into `router-support` issues
 and saves sanitised captures to `captures/<fingerprint>.json` (gitignored).
 
-An AI coding assistant then works each issue with this brief:
+Right after, `scripts/ai_router_driver.py` hands every new issue that has a
+capture to Claude Code (headless), then opens a **draft PR**. How it is contained,
+because the capture comes from a stranger and may contain prompt-injection text:
+
+- a fresh git worktree per issue, holding only that capture (no `.env`, no other captures);
+- Claude runs inside a bubblewrap jail: the home directory is hidden apart from the
+  worktree and tool installs; only file tools plus `uv run pytest` / `uv run ruff`
+  are allowed, no web tools, and Claude's own sandbox runs those commands offline;
+- the script re-runs the tests itself in a jail with no network;
+- only files under `nbn_watch/routers/` and `tests/` are committed, and the push is
+  refused if the diff contains any secret the script knows about;
+- if the capture is missing pages, the AI writes a request instead and the issue gets
+  `needs-capture` plus a comment telling the reporter exactly what to record.
+
+Logs are in `../.nbn-watch-ai/<fingerprint>.log`. Run by hand with
+`python scripts/ai_router_driver.py --dry-run` or `--issue N`.
+
+The brief Claude works from (abridged; the full text is in the script):
 
 > You are adding support for a modem to NBN Watch.
 > Inputs: the GitHub issue (model, ISP, page title, server header, linked paths)

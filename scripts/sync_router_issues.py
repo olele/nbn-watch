@@ -84,9 +84,9 @@ def body(issue: dict[str, Any]) -> str:
         + "<details><summary>Sanitized login page</summary>\n\n```html\n"
         + page
         + "\n```\n</details>\n\n"
-        "To support it: add a family to `nbn_monitor/router_probe.py` "
-        "(`SUPPORTED`, `detect_family`), a login/log reader in `nbn_monitor/router.py`, "
-        "tests, then publish a new desktop release.\n"
+        "To support it: add a driver in `nbn_watch/routers/` (see CONTRIBUTING.md) with "
+        "tests, then publish a release. When a capture is attached, "
+        "`scripts/ai_router_driver.py` drafts the driver as a draft PR for review.\n"
         f"\n_fingerprint `{issue.get('fp_key')}`_"
     )
 

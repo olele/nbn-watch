@@ -221,12 +221,7 @@ function viewRouter(mode, next){
     // Option 2: a diagnostic capture (much more useful for adding support).
     const cap=el('div','card');cap.style.marginTop='14px';
     cap.append(el('h2',null,'Help add support (5 minutes)'),el('p','lead','Record your modem\'s admin page in your browser. NBN Watch removes passwords, Wi-Fi names, MAC/IP addresses and serial numbers on this computer before anything is sent, and shows you a summary first.'));
-    const steps=el('ol');steps.style.cssText='margin:0 0 12px 18px;padding:0;color:var(--foreground)';
-    ['Open http://'+r.host+' in Chrome, Edge or Firefox (not logged in yet).',
-     'Press F12 → Network tab → tick "Preserve log".',
-     'Log in, then open the status/internet page and the system log page (if it has one).',
-     'Right-click in the Network list → "Save all as HAR" (Firefox: "Save All As HAR").',
-     'Choose that file below.'].forEach(t=>steps.append(el('li',null,t)));
+    cap.append(harGuide(r.host));
     const file=el('input');file.type='file';file.accept='.har,application/json';
     const out=el('div');
     file.onchange=async()=>{
@@ -243,9 +238,68 @@ function viewRouter(mode, next){
       const actions=el('div','row');actions.append(go);
       out.replaceChildren(box,pages,actions);
     };
-    cap.append(steps,file,out);unsupported.append(cap);
+    cap.append(el('label','f','Your HAR file'),file,out);unsupported.append(cap);
   }
   return c;
+}
+// --- HAR recording guide, tailored to the browser this page is open in ---
+function detectBrowser(){
+  const ua=navigator.userAgent, mobile=/Android|iPhone|iPad|iPod|Mobile/i.test(ua)||(navigator.maxTouchPoints>1&&/Macintosh/.test(ua));
+  const mac=/Mac/i.test(navigator.platform||ua);
+  let id='chrome';
+  if(/Edg\//.test(ua)) id='edge';
+  else if(/Firefox\//.test(ua)) id='firefox';
+  else if(/OPR\//.test(ua)) id='opera';
+  else if(/Vivaldi/.test(ua)) id='vivaldi';
+  else if(navigator.brave) id='brave';
+  else if(/Chrome\//.test(ua)||/Chromium\//.test(ua)) id='chrome';
+  else if(/Safari\//.test(ua)) id='safari';
+  return {id,mac,mobile};
+}
+const BROWSERS={chrome:'Chrome',edge:'Edge',brave:'Brave',opera:'Opera',vivaldi:'Vivaldi',firefox:'Firefox',safari:'Safari'};
+function harSteps(id,mac,host){
+  const url='http://'+host;
+  const devtools=mac?'Cmd + Option + I':'F12 (or Ctrl + Shift + I)';
+  const chromium=[
+    ['Open '+url+' in a new '+BROWSERS[id]+' tab. Don\'t log in yet.'],
+    ['Press '+devtools+' to open Developer Tools, then click the Network tab.'],
+    ['Tick "Preserve log" at the top of the Network tab.'],
+    ['Log in to the modem, then open: the status / overview page, the Internet / WAN / broadband page, and the system or event log page. Open the mobile / 4G backup page too if there is one.'],
+    ['Click the download icon (⬇ "Export HAR") above the request list, or right-click any request → "Save all as HAR". The default (sanitized) export is fine.'],
+    ['Choose the saved .har file below.']];
+  const steps={
+    firefox:[
+      ['Open '+url+' in a new Firefox tab. Don\'t log in yet.'],
+      ['Press '+(mac?'Cmd + Option + E':'Ctrl + Shift + E')+' to open the Network panel.'],
+      ['Click the ⚙ gear icon in the Network panel and tick "Persist Logs".'],
+      chromium[3],
+      ['Right-click any request in the list → "Save All As HAR".'],
+      chromium[5]],
+    safari:[
+      ['One-time setup: Safari → Settings → Advanced → tick "Show features for web developers" (older macOS: "Show Develop menu in menu bar").'],
+      ['Open '+url+' in a new Safari tab. Don\'t log in yet.'],
+      ['Develop menu → Show Web Inspector (Cmd + Option + I), then click the Network tab.'],
+      ['Tick "Preserve Log" in the Network tab.'],
+      chromium[3],
+      ['Click the Export button (⬆) at the top right of the Network tab and save the .har file.'],
+      chromium[5]]};
+  return steps[id]||chromium;
+}
+function harGuide(host){
+  const b=detectBrowser();const box=el('div');
+  if(b.mobile){box.append(note('Recording needs a computer: open NBN Watch on a laptop or desktop connected to this modem\'s network and come back to this step.','warn'));return box;}
+  const head=el('div','row');head.style.marginTop='0';
+  const sel=el('select');sel.style.cssText='background:var(--background);color:var(--bright-foreground);border:1px solid var(--muted);padding:6px 8px;font:inherit';
+  Object.entries(BROWSERS).forEach(([k,v])=>{const o=el('option',null,v);o.value=k;if(k===b.id)o.selected=true;sel.append(o);});
+  head.append(el('span','mut','Steps for'),sel,el('span','mut','· detected '+BROWSERS[b.id]+(b.mac?' on Mac':'')));
+  const open=el('a',null,'Open modem page ↗');open.href='http://'+host;open.target='_blank';open.rel='noopener';open.style.marginLeft='auto';
+  head.append(open);
+  const list=el('ol');list.style.cssText='margin:12px 0 12px 18px;padding:0;color:var(--foreground)';
+  const draw=()=>{list.replaceChildren();harSteps(sel.value,b.mac,host).forEach(([t])=>{const li=el('li',null,t);li.style.marginBottom='6px';list.append(li);});
+    if(sel.value==='safari') list.append(el('div','mut','If the summary below shows no log page, record again in Chrome or Edge — they capture page content most completely.'));};
+  sel.onchange=draw;draw();
+  box.append(head,list,note('Tip: don\'t browse other sites while recording. Anything not from the modem is dropped on this computer anyway.'));
+  return box;
 }
 function liveBox(live){
   const kv=el('div','kv');
