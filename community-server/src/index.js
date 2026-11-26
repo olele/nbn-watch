@@ -21,6 +21,7 @@ import {
 } from "./logic.js";
 import {
   CODE_TTL_SEC,
+  PLATFORMS,
   bearerOk,
   fingerprintKey,
   formatTelegram,
@@ -78,6 +79,7 @@ export default {
       if (url.pathname === "/api/admin/router-issues" && request.method === "GET") return await adminIssues(request, env);
       const capMatch = url.pathname.match(/^\/api\/admin\/router-issues\/(\d+)\/capture$/);
       if (capMatch && request.method === "GET") return await adminCapture(request, env, Number(capMatch[1]));
+      if (url.pathname.startsWith("/download/") && request.method === "GET") return await download(env, url);
       if (url.pathname === "/api/app/latest" && request.method === "GET") return await appLatest(env, url);
       if (url.pathname === "/api/community" && request.method === "GET") return await communitySummary(env);
       if (url.pathname === "/api/stats" && request.method === "GET") return await stats(env, url);
@@ -541,6 +543,16 @@ async function adminAck(request, env) {
 // ---------------------------------------------------------------------------
 // App releases (auto-update)
 // ---------------------------------------------------------------------------
+
+// Website download buttons: the latest published build, else the GitHub releases page.
+async function download(env, url) {
+  const platform = url.pathname.slice("/download/".length);
+  const row = PLATFORMS.includes(platform)
+    ? await env.DB.prepare("SELECT url FROM app_releases WHERE platform = ?").bind(platform).first()
+    : null;
+  const to = row?.url?.startsWith("https://") ? row.url : LINKS.github + "/releases/latest";
+  return new Response(null, { status: 302, headers: { location: to, "cache-control": "public, max-age=300" } });
+}
 
 async function appLatest(env, url) {
   const platform = url.searchParams.get("platform") || "";

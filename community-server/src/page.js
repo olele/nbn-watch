@@ -141,14 +141,37 @@ tbody tr{cursor:pointer} tbody tr:hover td{background:var(--sunken)}
 tr:last-child td{border-bottom:0}
 .scroll{overflow-x:auto}
 
-/* community */
-.duo{display:grid;grid-template-columns:1.5fr 1fr;gap:12px}
-.cta{padding:24px;display:flex;flex-direction:column;gap:10px;justify-content:space-between}
-.cta h4{margin:0;font-size:18px;letter-spacing:-.015em}
-.cta p{margin:0;color:var(--text2)}
-.cta.dc{background:linear-gradient(135deg,#5865f2,#4752c4);color:#fff;border:0}
-.cta.dc p{color:rgba(255,255,255,.85)}
-.cta.dc .btn{background:#fff;color:#4752c4;align-self:flex-start}
+.more{text-align:center;margin-top:12px}
+/* trust */
+.trust{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin-top:14px;border:1px solid var(--line);border-radius:var(--r);background:var(--surface)}
+.trust>div{padding:16px 18px;border-left:1px solid var(--line)}
+.trust>div:first-child{border-left:0}
+.trust svg{width:22px;height:22px;color:var(--accent);display:block;margin-bottom:8px}
+.trust b{display:block;font-size:14px;letter-spacing:-.005em}
+.trust span{display:block;font-size:13px;color:var(--muted);margin-top:2px;line-height:1.45}
+.livetag{display:inline-flex;align-items:center;gap:6px;font-weight:600;color:var(--good)}
+.livetag i{width:7px;height:7px;border-radius:50%;background:var(--good);animation:pulse 2s infinite}
+@keyframes pulse{0%{box-shadow:0 0 0 0 color-mix(in srgb,var(--good) 55%,transparent)}70%{box-shadow:0 0 0 6px transparent}100%{box-shadow:0 0 0 0 transparent}}
+@media (prefers-reduced-motion:reduce){.livetag i{animation:none}}
+
+/* join */
+.steps{display:grid;grid-template-columns:1.35fr 1fr;gap:12px}
+.step{display:flex;gap:16px;padding:24px}
+.step.main{border-color:color-mix(in srgb,var(--accent) 45%,var(--line))}
+.sn{width:30px;height:30px;flex:none;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:14px;background:var(--sunken);color:var(--text2)}
+.step.main .sn{background:var(--accent);color:#fff}
+.sb{flex:1;min-width:0}
+.sb h4{margin:3px 0 6px;font-size:18px;letter-spacing:-.015em}
+.sb p{margin:0;color:var(--text2)}
+.ticks{list-style:none;padding:0;margin:14px 0 18px;display:grid;gap:7px}
+.ticks li{position:relative;padding-left:24px;color:var(--text)}
+.ticks li::before{content:"";position:absolute;left:2px;top:6px;width:10px;height:5px;border-left:2px solid var(--good);border-bottom:2px solid var(--good);transform:rotate(-45deg)}
+.dl{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px}
+.btn.big{padding:12px 20px;font-size:15px;background:var(--accent);color:#fff}
+.other{font-size:13px;color:var(--muted)}
+.other a{color:var(--text2);text-decoration:underline;text-decoration-color:var(--line2);text-underline-offset:3px}
+.fine{font-size:12.5px!important;color:var(--muted)!important;margin-top:16px!important}
+.step .btn.discord{margin-top:16px}
 footer{padding:44px 0 56px;color:var(--muted);font-size:13px;display:flex;justify-content:space-between;gap:20px;flex-wrap:wrap}
 footer a{color:var(--text2)}
 
@@ -177,9 +200,12 @@ input[type=text]:focus{border-color:var(--accent)}
 @media (max-width:980px){
   .stage{grid-template-columns:1fr}
   .mapbox{min-height:0;height:58vh}
-  .panel{min-height:0;max-height:none}
+  .panel{min-height:0;max-height:72vh}
   .tiles{grid-template-columns:repeat(2,1fr)}
-  .duo{grid-template-columns:1fr}
+  .steps{grid-template-columns:1fr}
+  .trust{grid-template-columns:1fr 1fr}
+  .trust>div:nth-child(3){border-left:0}
+  .trust>div:nth-child(n+3){border-top:1px solid var(--line)}
   nav .links{display:none}
 }
 @media (max-width:560px){
@@ -187,20 +213,24 @@ input[type=text]:focus{border-color:var(--accent)}
   .banner{flex-wrap:wrap} .banner .btn{margin-left:0;width:100%}
   nav .right .ghost{display:none}
   .tile .v{font-size:25px}
+  .trust{grid-template-columns:1fr}
+  .trust>div{border-left:0!important;border-top:1px solid var(--line)}
+  .trust>div:first-child{border-top:0}
+  .step{padding:18px;gap:12px}
 }
 </style>
 </head>
 <body>
 <nav><div class="wrap">
   <a class="logo" href="#"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="var(--text)"/><path d="M7 13.5a7 7 0 0 1 10 0M9.3 15.8a3.6 3.6 0 0 1 5.4 0" stroke="var(--bg)" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="18" r="1.3" fill="var(--bg)"/></svg>NBN Watch</a>
-  <div class="links"><a href="#map-sec">Live map</a><a href="#numbers">Numbers</a><a href="#log">Outage log</a><a href="#community">Community</a></div>
-  <div class="right"><a class="btn ghost sm" id="nav-discord" href="#community">Discord</a><button class="btn sm" id="report-top">Report a problem</button></div>
+  <div class="links"><a href="#map-sec">Live map</a><a href="#numbers">Numbers</a><a href="#log">Outage log</a><a href="#join">Download</a><a href="#join">Community</a></div>
+  <div class="right"><button class="btn ghost sm" id="report-top">Report a problem</button><a class="btn sm" href="#join"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 19.5h14"/></svg>Download app</a></div>
 </div></nav>
 
 <main class="wrap">
   <div class="banner" id="banner" role="status">
     <div class="ic" id="banner-ic"></div>
-    <div><h1 id="headline">Checking NBN across Australia…</h1><p id="headsub">Live from home modems running NBN Watch, plus reports from people.</p></div>
+    <div><h1 id="headline">Checking NBN across Australia…</h1><p><span class="livetag"><i></i>Live</span> <span id="headsub">from home modems running NBN Watch and reports from people</span></p></div>
     <button class="btn" id="report-hero">Is your NBN down? Report it</button>
   </div>
 
@@ -217,6 +247,17 @@ input[type=text]:focus{border-color:var(--accent)}
   </div>
   <div id="mine-slot"></div>
 
+  <div class="trust">
+    <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 16.5h.01M11 16.5h.01M8 13V9m8 4V6"/></svg>
+      <b>Measured, not guessed</b><span>Most dots come straight from home modems the moment they lose NBN — often before NBN Co’s own status page.</span></div>
+    <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 5 6v5c0 4.5 3 8.3 7 9.5 4-1.2 7-5 7-9.5V6l-7-3Z"/><path d="m9 12 2 2 4-4"/></svg>
+      <b>Private by design</b><span>Areas are shown to about 1 km. No addresses, names or IP addresses are ever published.</span></div>
+    <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="m8 8-5 4 5 4m8-8 5 4-5 4M14 5l-4 14"/></svg>
+      <b>Open source</b><span>The app, this site and how every number is worked out are public on <a id="gh-trust" href="#" target="_blank" rel="noopener">GitHub</a>.</span></div>
+    <div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+      <b>Independent</b><span>Run by NBN users for NBN users. Not NBN Co, not an ISP, no ads.</span></div>
+  </div>
+
   <section id="numbers">
     <div class="sh"><div><h3 class="st">The numbers</h3><p class="sub">Problems detected or reported across Australia.</p></div></div>
     <div class="tiles" id="tiles"></div>
@@ -230,22 +271,43 @@ input[type=text]:focus{border-color:var(--accent)}
 
   <section id="log">
     <div class="sh"><div><h3 class="st">Outage log</h3><p class="sub" id="log-sub">Last 7 days: when each problem started and how long it took to come back.</p></div></div>
-    <div class="card scroll"><table><thead><tr><th>Area</th><th>What happened</th><th class="hide-sm">Started</th><th class="r">Lasted</th><th>Status</th></tr></thead><tbody id="logrows"></tbody></table></div>
+    <div class="card scroll" id="logcard"><table><thead><tr><th>Area</th><th>What happened</th><th class="hide-sm">Started</th><th class="r">Lasted</th><th>Status</th></tr></thead><tbody id="logrows"></tbody></table></div>
   </section>
 
-  <section id="community">
-    <div class="duo">
-      <div class="card cta dc"><div><h4>Talk about it on Discord</h4>
-        <p style="margin-top:6px">Is it just you? Ask neighbours in your area, share what your ISP told you, and get help setting up NBN Watch. All discussion lives in our Discord.</p></div>
-        <a class="btn" id="discord-btn" href="#" target="_blank" rel="noopener">Join the Discord</a></div>
-      <div class="card cta"><div><h4>Get the free app</h4>
-        <p style="margin-top:6px">Runs quietly on your computer, reads your modem and alerts you the moment NBN drops — usually before NBN Co’s own status page. Each app adds a dot to this map.</p></div>
-        <a class="btn ghost" id="app-btn" href="#" target="_blank" rel="noopener">Download for Windows, Mac or Linux</a></div>
+  <section id="join">
+    <div class="sh"><div><h3 class="st">Join NBN Watch</h3><p class="sub">Two steps. Both free.</p></div></div>
+    <div class="steps">
+      <div class="card step main">
+        <div class="sn">1</div>
+        <div class="sb">
+          <h4>Get the free app</h4>
+          <p>It runs quietly on your computer, reads your modem and tells you the moment NBN drops — and when it’s back.</p>
+          <ul class="ticks">
+            <li>Instant alerts on your phone via Telegram</li>
+            <li>Spots when your modem switches to 4G backup</li>
+            <li>Puts your area on this map anonymously, so neighbours know it’s not just them</li>
+          </ul>
+          <div class="dl">
+            <a class="btn big" id="dl-main" href="/download/windows">Download for Windows</a>
+            <span class="other" id="dl-other"></span>
+          </div>
+          <p class="fine">Free and open source · Windows 10+, macOS 13+, most Linux · Works with Optus and Telstra modems, more being added by the community.</p>
+        </div>
+      </div>
+      <div class="card step">
+        <div class="sn">2</div>
+        <div class="sb">
+          <h4>Join the community</h4>
+          <p>Is it just you? Ask people in your area, share what your ISP said, get help with setup and suggest features. All conversation happens on Discord.</p>
+          <a class="btn discord" id="discord-btn" href="#" target="_blank" rel="noopener"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.6 5.2A17 17 0 0 0 15.4 4l-.5 1a15.7 15.7 0 0 0-5.8 0l-.5-1a17 17 0 0 0-4.2 1.2C1.7 9.2 1 13 1.3 16.8A17 17 0 0 0 6.5 19.4l1.1-1.7c-.6-.2-1.2-.5-1.7-.9l.4-.3a12.2 12.2 0 0 0 11.4 0l.4.3c-.5.4-1.1.7-1.7.9l1.1 1.7a17 17 0 0 0 5.2-2.6c.4-4.4-.7-8.2-2.9-11.6ZM8.7 14.5c-1 0-1.9-1-1.9-2.1s.8-2.1 1.9-2.1 1.9 1 1.9 2.1-.8 2.1-1.9 2.1Zm6.6 0c-1 0-1.9-1-1.9-2.1s.8-2.1 1.9-2.1 1.9 1 1.9 2.1-.8 2.1-1.9 2.1Z"/></svg>Join our Discord</a>
+          <p class="fine" style="margin-top:14px">Prefer to just report? Use <a href="#" id="report-link">Report a problem</a> — no account needed.</p>
+        </div>
+      </div>
     </div>
   </section>
 
   <footer>
-    <div>NBN Watch is free and open source. Areas are shown to about 1 km; no addresses or personal details are ever published.<br>Not affiliated with NBN Co, Optus or Telstra.</div>
+    <div>© NBN Watch · free and open source (MIT). Not affiliated with NBN Co, Optus or Telstra.<br>Map data © OpenStreetMap contributors.</div>
     <div><a id="nbnco" href="#" target="_blank" rel="noopener">NBN Co status</a> · <a id="gh" href="#" target="_blank" rel="noopener">GitHub</a></div>
   </footer>
 </main>
@@ -278,7 +340,7 @@ const KIND={nbn_outage:'NBN outage',mobile_backup:'Modem on 4G backup',degraded:
 const STATUS={ongoing:'Ongoing',recovered:'Back online',nbn_restored:'Fixed (NBN Co)',expired:'Report faded',no_reports:'Went quiet'};
 const ICON={good:'<path d="m5 12.5 4.5 4.5L19 7.5" stroke="currentColor" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>',
   bad:'<path d="M12 7v6" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="17" r="1.4" fill="currentColor"/>'};
-let CFG={problems:{},links:{}},ALERTS=[],HIST=[],SEL=null,Q='';
+let CFG={problems:{},links:{}},ALERTS=[],HIST=[],SEL=null,Q='',LOGN=12;
 
 // ---------------- data model: areas ----------------
 function areas(){
@@ -289,7 +351,8 @@ function areas(){
   HIST.forEach(i=>{get_(i).hist.push(i);});
   return [...m.values()];
 }
-const isSevere=(a)=>a.severity==='outage'&&!a.kinds.user_report;
+// Red when a modem itself saw NBN drop; orange for slow service or people-only reports.
+const isSevere=(a)=>!!(a.kinds.nbn_outage||a.kinds.mobile_backup);
 const match=(a)=>!Q||(a.suburb||'').toLowerCase().includes(Q)||(a.postcode||'').startsWith(Q)||(a.state||'').toLowerCase()===Q;
 function summary(list){
   const done=list.filter(i=>i.status!=='ongoing'&&i.status!=='expired');
@@ -421,7 +484,7 @@ function renderBanner(){
   if(near) h=nearOnes.length?('NBN problems near '+near+' right now'):('No known NBN problems near '+near);
   else h=n?('NBN problems in '+n+(n>1?' areas':' area')+' right now'):'No known NBN problems right now';
   $('#headline').textContent=h;
-  $('#headsub').textContent=(n?(n+(n>1?' areas':' area')+' · '+homes+(homes>1?' homes':' home')+' affected across Australia'):'Nothing open across Australia')+' · updated '+new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+  $('#headsub').textContent='· '+(n?(n+(n>1?' areas':' area')+', '+homes+(homes>1?' homes':' home')+' affected across Australia'):'nothing open across Australia')+' · updated '+new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
 }
 
 // ---------------- numbers ----------------
@@ -458,7 +521,10 @@ document.querySelectorAll('#range button').forEach(b=>b.onclick=()=>{document.qu
 // ---------------- outage log ----------------
 function renderLog(){
   const week=Date.now()-7*864e5;
-  const rows=HIST.filter(i=>new Date(i.started_at).getTime()>=week||i.status==='ongoing').filter(match).slice(0,60);
+  const all=HIST.filter(i=>new Date(i.started_at).getTime()>=week||i.status==='ongoing').filter(match);
+  const rows=all.slice(0,LOGN);
+  const more=$('#logmore');if(more)more.remove();
+  if(all.length>LOGN){const m=el('div','more');m.id='logmore';const b=el('button','btn ghost sm','Show more ('+(all.length-LOGN)+')');b.onclick=()=>{LOGN+=20;renderLog();};m.append(b);$('#logcard').after(m);}
   $('#log-sub').textContent=Q?('Last 7 days matching “'+Q+'”.'):'Last 7 days: when each problem started and how long it took to come back.';
   if(!rows.length){const tr=el('tr');const td=el('td','empty',Q?'Nothing in the last 7 days for this search.':'No problems in the last 7 days.');td.colSpan=5;tr.append(td);$('#logrows').replaceChildren(tr);return;}
   $('#logrows').replaceChildren(...rows.map(i=>{const tr=el('tr');
@@ -476,16 +542,25 @@ async function loadLive(){
   renderBanner();renderPanel();drawMap();renderLog();
 }
 let qt=null;
-$('#q').oninput=()=>{clearTimeout(qt);qt=setTimeout(()=>{Q=$('#q').value.trim().toLowerCase();SEL=null;renderPanel();renderLog();},150);};
+$('#q').oninput=()=>{clearTimeout(qt);qt=setTimeout(()=>{Q=$('#q').value.trim().toLowerCase();SEL=null;LOGN=12;renderPanel();renderLog();},150);};
 $('#q').onkeydown=(e)=>{if(e.key==='Enter'){const a=areas().filter(match).sort((x,y)=>(y.alert?1:0)-(x.alert?1:0))[0];if(a)select(a.key,true);}};
 
 function renderLinks(){
   const L=CFG.links||{};
-  const dc=$('#discord-btn'),nav=$('#nav-discord');
-  if(L.discord){dc.href=L.discord;nav.href=L.discord;nav.target='_blank';nav.rel='noopener';}
-  else{dc.textContent='Discord opening soon';dc.removeAttribute('href');dc.style.opacity='.75';nav.style.display='none';}
-  if(L.github){$('#gh').href=L.github;$('#app-btn').href=L.github+'/releases/latest';}
+  const dc=$('#discord-btn');
+  if(L.discord){dc.href=L.discord;}
+  else{dc.lastChild.textContent='Discord opening soon';dc.removeAttribute('href');dc.style.opacity='.6';dc.style.cursor='default';}
+  if(L.github){$('#gh').href=L.github;$('#gh-trust').href=L.github;}
   if(L.nbn_status)$('#nbnco').href=L.nbn_status;
+  // Offer the visitor's own platform first.
+  const ua=navigator.userAgent;const OS=[['windows','Windows'],['macos','Mac'],['linux','Linux']];
+  const mine=/Mac/.test(ua)&&!/iPhone|iPad/.test(ua)?'macos':/Linux|X11/.test(ua)&&!/Android/.test(ua)?'linux':/Win/.test(ua)?'windows':null;
+  const main=$('#dl-main'),other=$('#dl-other');
+  if(mine){main.href='/download/'+mine;main.textContent='Download for '+OS.find(o=>o[0]===mine)[1];}
+  else{main.href=(L.github||'')+'/releases/latest';main.textContent='See downloads';}
+  other.replaceChildren(document.createTextNode(mine?'Also for ':'For '));
+  OS.filter(o=>o[0]!==mine).forEach(([k,n],i,arr)=>{const a=el('a',null,n);a.href='/download/'+k;other.append(a);if(i<arr.length-1)other.append(document.createTextNode(i===arr.length-2?' and ':', '));});
+  if(/iPhone|iPad|Android/.test(ua))other.append(document.createTextNode(' — it runs on a computer at home.'));
 }
 
 // ---------------- manual report ----------------
@@ -530,7 +605,7 @@ function showMine(){
     try{localStorage.removeItem('nbnw-report');}catch(e){}slot.replaceChildren();loadLive();};
   bar.append(b);slot.append(bar);
 }
-$('#report-top').onclick=openReport;$('#report-hero').onclick=openReport;
+$('#report-top').onclick=openReport;$('#report-hero').onclick=openReport;$('#report-link').onclick=(e)=>{e.preventDefault();openReport();};
 
 (async()=>{CFG=await get('/api/config').catch(()=>CFG);renderLinks();setupMap();await loadLive();loadNumbers();loadChart(30);showMine();
   setInterval(async()=>{await loadLive();loadNumbers();},60000);})();
