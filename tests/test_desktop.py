@@ -98,7 +98,7 @@ class TestAutostart:
         autostart.set_enabled(True, platform)
         assert autostart.is_enabled(platform)
         target = autostart._mac_plist() if platform == "darwin" else autostart._linux_desktop()
-        assert "nbn_watch.desktop" in target.read_text()
+        assert "nbn_watch.desktop" in target.read_text(encoding="utf-8")
         autostart.set_enabled(False, platform)
         assert not autostart.is_enabled(platform)
 
@@ -139,7 +139,7 @@ class TestMonitor:
             home, on_change=lambda o, n: changes.append((o.level, n.level)), cycle=cycle
         )
         assert m.check_now().level == "down" and changes == [("checking", "down")]
-        data = json.loads((home / "status.json").read_text())
+        data = json.loads((home / "status.json").read_text(encoding="utf-8"))
         assert data["level"] == "down" and data["rows"][0][0] == "🏠 Address"
         cfg, path, notifier = cycle.call_args.args
         assert cfg.loc_id == CONFIGURED.loc_id and path == home and not notifier.enabled

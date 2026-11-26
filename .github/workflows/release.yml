@@ -15,7 +15,7 @@ jobs:
         include:
           - { os: ubuntu-22.04, target: linux }
           - { os: windows-latest, target: windows }
-          - { os: macos-14, target: macos-arm64 }
+          - { os: macos-15, target: macos-arm64 }
           - { os: macos-15-intel, target: macos-x64 }
     runs-on: ${{ matrix.os }}
     steps:
