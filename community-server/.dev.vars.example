@@ -1,0 +1,2 @@
+HASH_SALT=dev-only-salt-change-me
+MIN_REPORTERS=1

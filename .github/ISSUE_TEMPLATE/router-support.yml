@@ -1,0 +1,25 @@
+name: Router support request
+description: My modem isn't supported yet
+labels: [router-support]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The fastest way: in the NBN Watch app, Router step → "Help add support" sends a cleaned
+        diagnostic capture automatically. Use this form if you can't run the app.
+        **Never paste passwords, Wi-Fi names or serial numbers here.**
+  - type: input
+    id: model
+    attributes: { label: Modem make and model, placeholder: "e.g. Telstra Smart Modem Gen 3" }
+    validations: { required: true }
+  - type: input
+    id: isp
+    attributes: { label: Internet provider, placeholder: "e.g. Telstra" }
+  - type: dropdown
+    id: backup
+    attributes:
+      label: Does it have 4G/5G backup?
+      options: ["Yes", "No", "Not sure"]
+  - type: textarea
+    id: notes
+    attributes: { label: Anything else (admin page address, firmware version) }

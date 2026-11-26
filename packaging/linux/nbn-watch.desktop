@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=NBN Watch
+Comment=Know the moment your NBN drops
+Exec=nbn-watch --open
+Icon=nbn-watch
+Terminal=false
+Categories=Network;Monitor;

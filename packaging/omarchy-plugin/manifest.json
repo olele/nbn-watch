@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "nbnwatch.status",
+  "name": "NBN Watch",
+  "version": "0.3.0",
+  "author": "NBN Watch contributors",
+  "license": "MIT",
+  "description": "NBN outage, router 4G failover and speed status from the NBN Watch app.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "NBN Watch",
+    "description": "NBN status with a detail popup (address, router, NBN Co, speed).",
+    "category": "Network",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}

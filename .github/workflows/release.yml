@@ -1,0 +1,87 @@
+name: Release
+# Push a tag like v0.3.0 to build every platform, publish a GitHub Release and
+# point the auto-updater at it. "Run workflow" builds without releasing.
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-22.04, target: linux }
+          - { os: windows-latest, target: windows }
+          - { os: macos-14, target: macos-arm64 }
+          - { os: macos-15-intel, target: macos-x64 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.13"
+      - name: Version
+        shell: bash
+        run: echo "VERSION=$(uv run --no-project python -c "import re;print(re.search(r'__version__ = \"(.+)\"', open('nbn_watch/__init__.py').read())[1])")" >> "$GITHUB_ENV"
+      - name: Linux tray dependencies (AppIndicator for GNOME/KDE/Wayland)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgirepository1.0-dev libcairo2-dev gir1.2-ayatanaappindicator3-0.1 libfuse2
+      - name: Test
+        run: uv run --extra desktop pytest tests/ -q --no-cov
+      - name: Build
+        shell: bash
+        run: |
+          EXTRA=""
+          if [ "$RUNNER_OS" = "Linux" ]; then EXTRA="--with pygobject<3.51"; fi
+          uv run --extra desktop --with pyinstaller $EXTRA pyinstaller --noconfirm packaging/nbn-watch.spec
+      - name: Package
+        shell: bash
+        run: |
+          mkdir -p out
+          case "${{ matrix.target }}" in
+            linux)
+              packaging/linux/build-appimage.sh dist/nbn-watch "$VERSION" && mv NBN-Watch-*.AppImage out/
+              packaging/linux/build-deb.sh dist/nbn-watch "$VERSION" && mv nbn-watch_*.deb out/ ;;
+            windows)
+              cp "dist/NBN Watch.exe" "out/NBN-Watch-${VERSION}-windows.exe" ;;
+            macos-*)
+              hdiutil create -volname "NBN Watch" -srcfolder "dist/NBN Watch.app" -ov -format UDZO "out/NBN-Watch-${VERSION}-${{ matrix.target }}.dmg" ;;
+          esac
+          ls -la out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nbn-watch-${{ matrix.target }}
+          path: out/*
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: out
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: out/*
+          generate_release_notes: true
+      - name: Point the auto-updater at this release
+        env:
+          ADMIN_TOKEN: ${{ secrets.COMMUNITY_ADMIN_TOKEN }}
+          SERVER: https://nbn-community.nbnstatus.workers.dev
+        run: |
+          [ -n "$ADMIN_TOKEN" ] || { echo "no COMMUNITY_ADMIN_TOKEN secret; skipping"; exit 0; }
+          V="${GITHUB_REF_NAME#v}"; BASE="https://github.com/${GITHUB_REPOSITORY}/releases/download/${GITHUB_REF_NAME}"
+          publish() {  # platform file
+            SHA=$(sha256sum "out/$2" | cut -d' ' -f1)
+            curl -fsS -X POST "$SERVER/api/admin/release" -H "authorization: Bearer $ADMIN_TOKEN" -H 'content-type: application/json' \
+              -d "{\"platform\":\"$1\",\"version\":\"$V\",\"url\":\"$BASE/$2\",\"sha256\":\"$SHA\",\"notes\":\"$GITHUB_REF_NAME\"}"
+          }
+          publish linux "NBN-Watch-${V}-x86_64.AppImage"
+          publish windows "NBN-Watch-${V}-windows.exe"
+          publish macos "NBN-Watch-${V}-macos-arm64.dmg"

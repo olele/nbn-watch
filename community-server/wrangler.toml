@@ -1,0 +1,22 @@
+name = "nbn-community"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "nbn-community"
+database_id = "3bcd6643-aa10-4f72-90ff-b2cbf350add3"
+
+[vars]
+MIN_REPORTERS = "1"      # every report counts; raise to hide zones with few devices
+ACTIVE_MINUTES = "15"    # reports older than this are ignored
+TELEGRAM_BOT_USERNAME = "FaMuLei_bot"
+TURNSTILE_SITE_KEY = "0x4AAAAAAGT1axgO7iAVK1PW"
+
+# Secret (not in this file):  npx wrangler secret put HASH_SALT
+
+[triggers]
+crons = ["*/5 * * * *", "17 3 * * *"]   # recovery watch; daily cleanup
+
+# Secrets (not in this file):
+#   HASH_SALT, TELEGRAM_BOT_TOKEN, TELEGRAM_WEBHOOK_SECRET, ADMIN_TOKEN
