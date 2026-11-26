@@ -270,6 +270,8 @@ export function logRows(incidents, nowSec) {
       state: i.state ?? "",
       postcode: i.postcode ?? "",
       zone: i.zone,
+      lat: i.lat ?? null, // ~1 km grid-cell centre, same as the live map
+      lng: i.lng ?? null,
       kind: i.kind,
       started_at: iso(i.started_at),
       ended_at: end != null ? iso(end) : null,

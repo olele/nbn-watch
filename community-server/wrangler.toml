@@ -12,6 +12,7 @@ MIN_REPORTERS = "1"      # every report counts; raise to hide zones with few dev
 ACTIVE_MINUTES = "15"    # reports older than this are ignored
 TELEGRAM_BOT_USERNAME = "FaMuLei_bot"
 TURNSTILE_SITE_KEY = "0x4AAAAAAGT1axgO7iAVK1PW"
+DISCORD_URL = ""        # Discord invite link, e.g. https://discord.gg/xxxx (all discussion goes there)
 
 # Secret (not in this file):  npx wrangler secret put HASH_SALT
 

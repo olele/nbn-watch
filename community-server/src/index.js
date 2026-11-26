@@ -90,7 +90,7 @@ export default {
             ? { lat: Number(cf.latitude), lng: Number(cf.longitude), city: String(cf.city || "").slice(0, 40) }
             : null;
         return json(
-          { turnstile_site_key: env.TURNSTILE_SITE_KEY || "", problems: PROBLEMS, links: LINKS, near },
+          { turnstile_site_key: env.TURNSTILE_SITE_KEY || "", problems: PROBLEMS, links: { ...LINKS, discord: env.DISCORD_URL || "" }, near },
           200,
           { "cache-control": "private, no-store" },
         );
@@ -135,7 +135,7 @@ const SECURITY = {
   "referrer-policy": "strict-origin-when-cross-origin",
   "content-security-policy":
     "default-src 'self'; script-src 'unsafe-inline' https://cdnjs.cloudflare.com https://challenges.cloudflare.com; " +
-    "style-src 'unsafe-inline' https://cdnjs.cloudflare.com; " +
+    "style-src 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; font-src https://fonts.gstatic.com; " +
     "img-src 'self' data: blob:; worker-src blob:; child-src blob:; frame-src https://challenges.cloudflare.com; " +
     "connect-src 'self' https://tiles.openfreemap.org",
 };
@@ -267,7 +267,7 @@ async function incidents(env, url) {
   const t = now();
   const days = Math.min(30, Math.max(1, Number(url.searchParams.get("days")) || 7));
   const { results } = await env.DB.prepare(
-    `SELECT zone, suburb, state, postcode, kind, started_at, ended_at, end_reason FROM incidents
+    `SELECT zone, suburb, state, postcode, lat, lng, kind, started_at, ended_at, end_reason FROM incidents
      WHERE (started_at >= ? OR ended_at IS NULL) AND COALESCE(end_reason, '') != 'replaced'
      ORDER BY started_at DESC LIMIT 500`,
   )
