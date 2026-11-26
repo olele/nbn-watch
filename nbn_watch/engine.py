@@ -65,7 +65,7 @@ class EngineState:
     @classmethod
     def load(cls, path: Path) -> EngineState:
         try:
-            data = json.loads(path.read_text())
+            data = json.loads(path.read_text(encoding="utf-8"))
             since = data.get("since")
             return cls(
                 str(data.get("announced", "")), datetime.fromisoformat(since) if since else None
@@ -84,7 +84,8 @@ class EngineState:
                     "announced": self.announced,
                     "since": self.since.isoformat() if self.since else None,
                 }
-            )
+            ),
+            encoding="utf-8",
         )
         tmp.replace(path)
 

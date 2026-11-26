@@ -37,7 +37,7 @@ class RouterState:
     @classmethod
     def load(cls, path: Path) -> RouterState | None:
         try:
-            data = json.loads(path.read_text())
+            data = json.loads(path.read_text(encoding="utf-8"))
         except FileNotFoundError:
             return None
         except (OSError, ValueError) as e:
@@ -57,7 +57,7 @@ class RouterState:
 
     def save(self, path: Path) -> None:
         tmp = path.with_suffix(path.suffix + ".tmp")
-        tmp.write_text(json.dumps(self.to_json(), indent=2))
+        tmp.write_text(json.dumps(self.to_json(), indent=2), encoding="utf-8")
         tmp.replace(path)
 
     def copy(self) -> RouterState:

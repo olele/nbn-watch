@@ -127,7 +127,7 @@ class SpeedState:
     @classmethod
     def load(cls, path: Path) -> SpeedState:
         try:
-            data = json.loads(path.read_text())
+            data = json.loads(path.read_text(encoding="utf-8"))
             return cls(
                 history={k: [float(x) for x in v] for k, v in data.get("history", {}).items()},
                 last_run=datetime.fromisoformat(data["last_run"]) if data.get("last_run") else None,
@@ -148,7 +148,7 @@ class SpeedState:
             "last_connection": self.last_connection,
         }
         tmp = path.with_suffix(path.suffix + ".tmp")
-        tmp.write_text(json.dumps(data, indent=2))
+        tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
         tmp.replace(path)
 
 

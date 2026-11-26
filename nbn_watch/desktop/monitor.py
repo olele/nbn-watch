@@ -165,7 +165,7 @@ class Monitor:
         }
         try:
             tmp = self.home / "status.json.tmp"
-            tmp.write_text(json.dumps(data, ensure_ascii=False))
+            tmp.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
             tmp.replace(self.home / "status.json")
         except OSError as e:
             print(f"status file not written: {e}", file=sys.stderr)

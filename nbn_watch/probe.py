@@ -140,7 +140,7 @@ def _private(ip: str) -> bool:
 
 def _linux_gateway(route_file: Path = Path("/proc/net/route")) -> str | None:
     try:
-        for line in route_file.read_text().splitlines()[1:]:
+        for line in route_file.read_text(encoding="utf-8").splitlines()[1:]:
             parts = line.split()
             if len(parts) > 2 and parts[1] == "00000000" and parts[2] != "00000000":
                 raw = bytes.fromhex(parts[2])[::-1]

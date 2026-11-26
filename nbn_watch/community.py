@@ -48,7 +48,7 @@ class CommunityState:
     @classmethod
     def load(cls, path: Path) -> CommunityState:
         try:
-            data = json.loads(path.read_text())
+            data = json.loads(path.read_text(encoding="utf-8"))
             z = data.get("zone")
 
             def dt(v: object) -> datetime | None:
@@ -74,7 +74,7 @@ class CommunityState:
             "last_sent": self.last_sent.isoformat() if self.last_sent else None,
         }
         tmp = path.with_suffix(".tmp")
-        tmp.write_text(json.dumps(data, indent=2))
+        tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
         if sys.platform != "win32":
             tmp.chmod(0o600)  # the device id is also the alert-relay secret
         tmp.replace(path)

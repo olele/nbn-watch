@@ -25,7 +25,7 @@ UPDATE_CHECK_SEC = 6 * 3600
 def existing_instance(home: Path) -> str | None:
     """URL of an already-running instance's UI, if one answers."""
     try:
-        info = json.loads((home / "ui.json").read_text())
+        info = json.loads((home / "ui.json").read_text(encoding="utf-8"))
         url, token = str(info["url"]), str(info["token"])
         if niquests.get(f"{url}/health", timeout=2).status_code == 200:
             return f"{url}/?t={token}"
@@ -37,7 +37,7 @@ def existing_instance(home: Path) -> str | None:
 def request_check(home: Path) -> bool:
     """Ask the running instance to check now."""
     try:
-        info = json.loads((home / "ui.json").read_text())
+        info = json.loads((home / "ui.json").read_text(encoding="utf-8"))
         resp = niquests.post(
             f"{info['url']}/api/check",
             json={},
@@ -163,7 +163,7 @@ def main(argv: list[str] | None = None) -> int:
 
     monitor = Monitor(home)
     server, url, token, api = start_server(monitor)
-    (home / "ui.json").write_text(json.dumps({"url": url, "token": token}))
+    (home / "ui.json").write_text(json.dumps({"url": url, "token": token}), encoding="utf-8")
     if sys.platform != "win32":
         (home / "ui.json").chmod(0o600)
     login_url = f"{url}/?t={token}"

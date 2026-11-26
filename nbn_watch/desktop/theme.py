@@ -30,7 +30,7 @@ OMARCHY_COLORS = Path.home() / ".local" / "state" / "omarchy" / "current" / "the
 def load_theme(path: Path = OMARCHY_COLORS) -> dict[str, str]:
     colours = dict(DEFAULT)
     try:
-        data = tomllib.loads(path.read_text())
+        data = tomllib.loads(path.read_text(encoding="utf-8"))
     except (OSError, tomllib.TOMLDecodeError):
         return colours
     for key in DEFAULT:

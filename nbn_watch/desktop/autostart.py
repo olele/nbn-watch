@@ -98,7 +98,8 @@ def set_enabled(enabled: bool, platform: str | None = None) -> None:
     else:
         target.write_text(
             "[Desktop Entry]\nType=Application\nName=NBN Watch\n"
-            f"Exec={shlex.join(cmd)}\nX-GNOME-Autostart-enabled=true\nTerminal=false\n"
+            f"Exec={shlex.join(cmd)}\nX-GNOME-Autostart-enabled=true\nTerminal=false\n",
+            encoding="utf-8",
         )
 
 

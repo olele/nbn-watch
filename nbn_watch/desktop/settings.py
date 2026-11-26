@@ -59,7 +59,7 @@ class Settings:
     @classmethod
     def load(cls, path: Path) -> Settings:
         try:
-            data = json.loads(path.read_text())
+            data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             return cls()
         if not isinstance(data, dict):
@@ -73,7 +73,7 @@ class Settings:
 
     def save(self, path: Path) -> None:
         tmp = path.with_suffix(".tmp")
-        tmp.write_text(json.dumps(asdict(self), indent=2))
+        tmp.write_text(json.dumps(asdict(self), indent=2), encoding="utf-8")
         if sys.platform != "win32":
             tmp.chmod(0o600)  # contains bot token / router password
         tmp.replace(path)
