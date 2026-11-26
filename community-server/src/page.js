@@ -80,6 +80,17 @@ nav .right{margin-left:auto;display:flex;gap:8px;align-items:center}
 .search input:focus{border-color:var(--accent);background:var(--surface)}
 .search svg{position:absolute;left:11px;top:50%;transform:translateY(-50%);color:var(--muted)}
 .panel .body{overflow:auto;flex:1}
+.ptabs{display:flex;gap:4px;margin-top:10px}
+.ptabs button{flex:1;border:1px solid var(--line);background:transparent;color:var(--text2);font:500 12.5px var(--font);padding:6px 4px;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:5px}
+.ptabs button.on{background:var(--text);color:var(--bg);border-color:var(--text)}
+.ptabs .n{font-size:11px;opacity:.7;font-variant-numeric:tabular-nums}
+.pmore{padding:6px 16px 12px;border-top:1px solid var(--line)}
+button.link{border:0;background:none;color:var(--accent);font:500 13px var(--font);cursor:pointer;padding:6px 0}
+.maphint{position:absolute;left:50%;bottom:44px;transform:translateX(-50%);z-index:2;display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line2);border-radius:999px;padding:6px 6px 6px 14px;font-size:13px;box-shadow:var(--shadow);white-space:nowrap}
+.maphint[hidden]{display:none}
+.maphint button{border:0;border-radius:999px;background:var(--text);color:var(--bg);font:600 12.5px var(--font);padding:6px 11px;cursor:pointer}
+.legend button{all:unset;display:inline-flex;align-items:center;gap:6px;cursor:pointer}
+.legend button.off{opacity:.35;text-decoration:line-through}
 .ptitle{display:flex;justify-content:space-between;align-items:baseline;padding:12px 16px 6px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
 .row{display:flex;gap:11px;align-items:flex-start;padding:11px 16px;cursor:pointer;border-top:1px solid var(--line)}
 .row:hover{background:var(--sunken)}
@@ -246,12 +257,12 @@ input[type=text]:focus{border-color:var(--accent)}
 
   <div class="stage" id="map-sec">
     <div class="mapbox">
-      <div id="map" role="region" aria-label="Map of NBN problems"></div>
-      <div class="legend"><span><i class="dot crit"></i>Outage now</span><span><i class="dot ser"></i>Slow / reported by people</span><span><i class="dot past"></i>Fixed (last 30 days)</span><span><i class="dia"></i>Official report (NBN Co / providers)</span><span class="mut">Bigger = more homes affected</span></div>
+      <div id="map" role="region" aria-label="Map of NBN problems"></div><div class="maphint" id="maphint" hidden></div>
+      <div class="legend" aria-label="Map layers (click to show or hide)"><button type="button" data-layers="crit,halo"><i class="dot crit"></i>Outage now</button><button type="button" data-layers="ser"><i class="dot ser"></i>Slow / reported by people</button><button type="button" data-layers="past"><i class="dot past"></i>Fixed (last 30 days)</button><button type="button" data-layers="nbnco"><i class="dia"></i>Official report (NBN Co / providers)</button><span class="mut">Bigger = more homes affected</span></div>
     </div>
     <aside class="panel" aria-label="Areas">
       <div class="top"><div class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-        <input type="search" id="q" placeholder="Search your suburb or postcode" aria-label="Search suburb or postcode" autocomplete="off"></div></div>
+        <input type="search" id="q" placeholder="Search your suburb or postcode" aria-label="Search suburb or postcode" autocomplete="off"></div><div id="ptabs-slot"></div></div>
       <div class="body" id="pbody"></div>
     </aside>
   </div>
@@ -381,32 +392,58 @@ function summary(list){
 }
 
 // ---------------- side panel ----------------
+// Panel views: all | now | official | fixed
+let VIEW='all',FIXN=6;
+function tabs(counts){
+  const bar=el('div','ptabs');
+  [['all','All'],['now','Now'],['official','Official'],['fixed','Fixed']].forEach(([k,l])=>{
+    const b=el('button',VIEW===k?'on':null);b.type='button';b.append(document.createTextNode(l));
+    if(k!=='all'){const n=el('span','n',String(counts[k]));b.append(n);}
+    b.onclick=()=>{VIEW=k;FIXN=k==='fixed'?40:6;renderPanel();$('#pbody').scrollTop=0;};bar.append(b);});
+  return bar;
+}
 function renderPanel(){
   const body=$('#pbody');
-  if(SEL){body.replaceChildren(SEL.startsWith('nbnco:')?nbnDetail(SEL.slice(6)):detail(SEL));body.scrollTop=0;return;}
+  if(SEL){$('#ptabs-slot').replaceChildren();body.replaceChildren(SEL.startsWith('nbnco:')?nbnDetail(SEL.slice(6)):detail(SEL));body.scrollTop=0;return;}
   const all=areas().filter(match);
   const active=all.filter(a=>a.alert).sort((a,b)=>b.alert.devices-a.alert.devices||a.alert.since.localeCompare(b.alert.since));
-  const past=all.filter(a=>!a.alert&&a.hist.length).sort((a,b)=>b.hist[0].started_at.localeCompare(a.hist[0].started_at)).slice(0,30);
+  const pastAll=all.filter(a=>!a.alert&&a.hist.length).sort((a,b)=>b.hist[0].started_at.localeCompare(a.hist[0].started_at));
+  const offAll=NBN.filter(nbnMatch);
+  $('#ptabs-slot').replaceChildren(tabs({now:active.length,official:offAll.length,fixed:pastAll.length}));
+  const show=(k)=>VIEW==='all'||VIEW===k;
   const out=[];
-  const t1=el('div','ptitle');t1.append(el('span',null,'Problems now'),el('span','num',String(active.length)));out.push(t1);
-  if(!active.length) out.push(Q?emptyBox('Nothing open in “'+Q+'”','No current problems match your search.'):emptyBox('No problems right now','When a modem drops off NBN or someone reports a problem, it shows up here within a minute.'));
-  active.forEach(a=>{const r=el('div','row');const al=a.alert;
-    const b=el('div');b.append(el('div','t',name(a)),el('div','m',kindText(al.kinds)+' · '+al.devices+(al.devices>1?' homes':' home')+(place(a)?' · '+place(a):'')));
-    const d=el('div','d num',dur(minsSince(al.since)));d.append(el('small',null,'so far'));
-    r.append(el('i','dot '+(isSevere(al)?'crit':'ser')),b,d);r.onclick=()=>select(a.key,true);out.push(r);});
-  if(past.length){const t2=el('div','ptitle');t2.style.marginTop='8px';t2.append(el('span',null,'Fixed in the last 30 days'),el('span','num',String(past.length)));out.push(t2);
-    past.forEach(a=>{const r=el('div','row');const last=a.hist[0];const s=summary(a.hist);
-      const b=el('div');b.append(el('div','t',name(a)),el('div','m',s.count+(s.count>1?' problems':' problem')+' · last '+day(last.started_at)));
-      const d=el('div','d num',dur(last.duration_min));d.append(el('small',null,'last one'));
-      r.append(el('i','dot past'),b,d);r.onclick=()=>select(a.key,true);out.push(r);});}
-  else if(Q&&!active.length) out.push(emptyBox('','No problems recorded in the last 30 days for this search. Good news for '+Q+'.'));
-  const off=NBN.filter(nbnMatch).slice(0,Q?50:8);
-  if(off.length){const t3=el('div','ptitle');t3.style.marginTop='8px';t3.append(el('span',null,'Official reports · 90 days'),el('span','num',String(NBN.filter(nbnMatch).length)));out.push(t3);
-    off.forEach(o=>{const r=el('div','row');const b=el('div');
+  const head=(label,n,more)=>{const t=el('div','ptitle');t.append(el('span',null,label),el('span','num',String(n)));if(out.length)t.style.marginTop='8px';out.push(t);};
+  const moreBtn=(n,go)=>{const m=el('div','pmore');const b=el('button','link','Show all '+n);b.type='button';b.onclick=go;m.append(b);out.push(m);};
+  if(show('now')){
+    head('Problems now',active.length);
+    if(!active.length) out.push(Q?emptyBox('Nothing open in “'+Q+'”','No current problems match your search.'):emptyBox('No problems right now','When a modem drops off NBN or someone reports a problem, it shows up here within a minute.'));
+    active.forEach(a=>{const r=el('div','row');const al=a.alert;
+      const b=el('div');b.append(el('div','t',name(a)),el('div','m',kindText(al.kinds)+' · '+al.devices+(al.devices>1?' homes':' home')+(place(a)?' · '+place(a):'')));
+      const d=el('div','d num',dur(minsSince(al.since)));d.append(el('small',null,'so far'));
+      r.append(el('i','dot '+(isSevere(al)?'crit':'ser')),b,d);r.onclick=()=>select(a.key,true);out.push(r);});
+  }
+  if(show('official')){
+    head('Official reports · NBN Co & providers · 90 days',offAll.length);
+    if(!offAll.length) out.push(emptyBox('',Q?'No official reports for this search in the last 90 days.':'No official reports in the last 90 days.'));
+    const lim=VIEW==='official'?offAll.length:5;
+    offAll.slice(0,lim).forEach(o=>{const r=el('div','row');const b=el('div');
       b.append(el('div','t',nbnName(o)),el('div','m',srcShort(o)+(isMobile(o)?' mobile':'')+' · '+(o.premises?o.premises.toLocaleString()+' premises · ':'')+cause(o)+' · '+day(o.start_at)));
       const d=el('div','d num',hrs(o.duration_h));d.append(el('small',null,'to fix'));
-      const ic=el('i','dia');ic.style.marginTop='6px';r.append(ic,b,d);r.onclick=()=>selectNbn(o.ref,true);out.push(r);});}
+      const ic=el('i','dia');ic.style.marginTop='6px';r.append(ic,b,d);r.onclick=()=>selectNbn(o.ref,true);out.push(r);});
+    if(offAll.length>lim)moreBtn(offAll.length,()=>{VIEW='official';renderPanel();$('#pbody').scrollTop=0;});
+  }
+  if(show('fixed')){
+    head('Fixed in the last 30 days',pastAll.length);
+    if(!pastAll.length) out.push(emptyBox('',Q?'No problems recorded in the last 30 days for this search. Good news for '+Q+'.':'Nothing fixed in the last 30 days.'));
+    const lim=VIEW==='fixed'?pastAll.length:FIXN;
+    pastAll.slice(0,lim).forEach(a=>{const r=el('div','row');const last=a.hist[0];const s=summary(a.hist);
+      const b=el('div');b.append(el('div','t',name(a)),el('div','m',s.count+(s.count>1?' problems':' problem')+' · last '+day(last.started_at)));
+      const d=el('div','d num',dur(last.duration_min));d.append(el('small',null,'last one'));
+      r.append(el('i','dot past'),b,d);r.onclick=()=>select(a.key,true);out.push(r);});
+    if(pastAll.length>lim)moreBtn(pastAll.length,()=>{VIEW='fixed';renderPanel();$('#pbody').scrollTop=0;});
+  }
   body.replaceChildren(...out);
+  updateHint();
 }
 function emptyBox(t,s){const e=el('div','empty');if(t)e.append(el('b',null,t));e.append(document.createTextNode(s));return e;}
 function kindText(k){return Object.entries(k).map(([x,n])=>(KIND[x]||x)+(n>1?' ×'+n:'')).join(' · ');}
@@ -538,8 +575,19 @@ function setupMap(){
       map.on('mouseleave',id,()=>{map.getCanvas().style.cursor='';hover.remove();});
     }
     drawMap();
+    map.on('moveend',updateHint);updateHint();
   });
 }
+function updateHint(){
+  const h=$('#maphint');if(!map||!map.getLayer('nbnco')||!NBN.length){h.hidden=true;return;}
+  const pts=NBN.flatMap(o=>o.points);if(!pts.length){h.hidden=true;return;}
+  const b=map.getBounds();const inView=pts.filter(p=>b.contains(p)).length;
+  if(inView||map.getLayoutProperty('nbnco','visibility')==='none'){h.hidden=true;return;}
+  const btn=el('button',null,'Show all');btn.onclick=()=>{const bb=new maplibregl.LngLatBounds();pts.forEach(p=>bb.extend(p));map.fitBounds(bb,{padding:50,maxZoom:6});};
+  h.replaceChildren(document.createTextNode('No official reports in this view · '+NBN.length+' across Australia'),btn);h.hidden=false;
+}
+document.querySelectorAll('.legend button').forEach(b=>b.onclick=()=>{if(!map)return;const off=!b.classList.toggle('off');
+  b.dataset.layers.split(',').forEach(id=>{if(map.getLayer(id))map.setLayoutProperty(id,'visibility',b.classList.contains('off')?'none':'visible');});updateHint();});
 let fitted=false;
 function drawMap(){
   if(!map||!map.getSource('areas'))return;
@@ -550,6 +598,7 @@ function drawMap(){
   map.getSource('areas').setData({type:'FeatureCollection',features:feats});
   if(map.getSource('nbnco'))map.getSource('nbnco').setData({type:'FeatureCollection',features:NBN.flatMap(o=>o.points.map(pt=>({type:'Feature',geometry:{type:'Point',coordinates:pt},
     properties:{ref:o.ref,name:nbnName(o),est:perPoint(o)||300,label:srcShort(o)+' · '+day(o.start_at)+' · '+hrs(o.duration_h)+' · '+(perPoint(o)?'~'+perPoint(o).toLocaleString()+' premises here':cause(o))}})))});
+  updateHint();
   const live=feats.filter(f=>f.properties.kind!=='past');
   if(live.length&&!fitted&&!CFG.near){fitted=true;const b=new maplibregl.LngLatBounds();live.forEach(f=>b.extend(f.geometry.coordinates));map.fitBounds(b,{padding:80,maxZoom:10});}
 }
@@ -569,7 +618,7 @@ function renderBanner(){
   if(near) h=nearOnes.length?('NBN problems near '+near+' right now'):('No known NBN problems near '+near);
   else h=n?('NBN problems in '+n+(n>1?' areas':' area')+' right now'):'No known NBN problems right now';
   $('#headline').textContent=h;
-  $('#headsub').textContent='· '+(n?(n+(n>1?' areas':' area')+', '+homes+(homes>1?' homes':' home')+' affected across Australia'):'nothing open across Australia')+' · updated '+new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
+  $('#headsub').textContent='· '+(n?(n+(n>1?' areas':' area')+', '+homes+(homes>1?' homes':' home')+' affected across Australia'):'nothing open across Australia')+(NBN.length?' · '+NBN.length+' official reports in 90 days':'')+' · updated '+new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit'});
 }
 
 // ---------------- numbers ----------------
@@ -652,7 +701,7 @@ async function loadLive(){
   renderBanner();renderPanel();drawMap();renderLog();renderOfficial();
 }
 let qt=null;
-$('#q').oninput=()=>{clearTimeout(qt);qt=setTimeout(()=>{Q=$('#q').value.trim().toLowerCase();SEL=null;LOGN=12;renderPanel();renderLog();},150);};
+$('#q').oninput=()=>{clearTimeout(qt);qt=setTimeout(()=>{Q=$('#q').value.trim().toLowerCase();SEL=null;LOGN=12;VIEW='all';renderPanel();renderLog();},150);};
 $('#q').onkeydown=(e)=>{if(e.key==='Enter'){const a=areas().filter(match).sort((x,y)=>(y.alert?1:0)-(x.alert?1:0))[0];if(a)select(a.key,true);}};
 
 function renderLinks(){
